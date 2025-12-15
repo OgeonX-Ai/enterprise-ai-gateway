@@ -1,0 +1,2 @@
+class QueryType:
+    SIMPLE = "simple"

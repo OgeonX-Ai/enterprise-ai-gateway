@@ -10,6 +10,8 @@ A staged path from local mocks to production-grade Azure services.
 5. Add private endpoints to restrict traffic inside the virtual network.
 6. Enable CI/CD with GitHub Actions (build, test, container push, deploy to ACA).
 
+Refer to the [Azure Scalability Report](azure/scalability-report.md) for throughput assumptions, quota planning, and connector-specific concurrency targets before sizing ACA or AKS.
+
 ## GitHub Actions outline
 - Lint and type-check (future)
 - Run unit tests
