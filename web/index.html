@@ -6,123 +6,309 @@
   <title>Enterprise AI Gateway</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1.5.10/css/pico.min.css" />
   <style>
-    body { padding: 1.5rem; }
-    .debug { background: #0f172a; color: #e2e8f0; padding: 1rem; border-radius: 8px; font-family: monospace; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
-    textarea { min-height: 120px; }
+    :root {
+      --surface: rgba(255, 255, 255, 0.75);
+      --glass-border: 1px solid rgba(255, 255, 255, 0.25);
+      --shadow: 0 20px 60px rgba(15, 23, 42, 0.18);
+    }
+
+    body {
+      padding: 0;
+      background: radial-gradient(circle at 20% 20%, #ecfeff 0, #f8fafc 40%, #e2e8f0 100%);
+      color: #0f172a;
+      min-height: 100vh;
+      font-family: "Inter", system-ui, -apple-system, sans-serif;
+    }
+
+    header {
+      background: linear-gradient(120deg, #0ea5e9, #6366f1, #8b5cf6);
+      color: #f8fafc;
+      padding: 2rem 1.5rem 1.5rem;
+      box-shadow: var(--shadow);
+    }
+
+    header .container {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 1rem;
+      align-items: center;
+    }
+
+    .tagline {
+      opacity: 0.9;
+      margin-bottom: 0.5rem;
+    }
+
+    .actions {
+      display: flex;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .glass {
+      background: var(--surface);
+      border: var(--glass-border);
+      backdrop-filter: blur(6px);
+      box-shadow: var(--shadow);
+    }
+
+    main.container {
+      margin-top: -2.5rem;
+      padding: 1.5rem;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      background: #e0f2fe;
+      color: #0ea5e9;
+      border-radius: 999px;
+      padding: 0.35rem 0.75rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem;
+    }
+
+    .debug {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 1rem;
+      border-radius: 8px;
+      font-family: "JetBrains Mono", SFMono-Regular, ui-monospace, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      overflow: auto;
+    }
+
+    textarea {
+      min-height: 140px;
+    }
+
     .status-ok { color: #16a34a; }
     .status-error { color: #dc2626; }
     .status-warning { color: #d97706; }
+
+    .hint {
+      display: flex;
+      gap: 0.6rem;
+      align-items: flex-start;
+      background: #f8fafc;
+      border-left: 4px solid #0ea5e9;
+      padding: 0.75rem 0.9rem;
+      border-radius: 8px;
+      margin: 0.5rem 0 1rem;
+    }
+
+    details summary {
+      cursor: pointer;
+    }
+
+    .info-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.5rem;
+      height: 1.5rem;
+      border-radius: 50%;
+      background: #e0f2fe;
+      color: #0ea5e9;
+      font-weight: 700;
+      border: 1px solid #bae6fd;
+    }
+
+    .muted {
+      color: #475569;
+      font-size: 0.95rem;
+    }
+
+    .inline-code {
+      background: #e2e8f0;
+      border-radius: 6px;
+      padding: 0 0.3rem;
+      font-weight: 600;
+    }
   </style>
 </head>
 <body>
-  <main class="container">
-    <h1>Enterprise AI Gateway</h1>
-    <p>Select providers, choose a channel, and chat with the gateway-owned runtime.</p>
+  <header>
+    <div class="container">
+      <div>
+        <p class="tagline">Enterprise-grade speech + LLM routing</p>
+        <h1>Enterprise AI Gateway</h1>
+        <p class="muted">Pick providers, run quick smoke tests, and share this page with teammates. Secrets stay server-side.</p>
+      </div>
+      <div class="actions">
+        <a class="contrast outline" href="../README.md" target="_blank">Project README</a>
+        <a class="contrast outline" href="../docs/README.md" target="_blank">Docs index</a>
+        <span class="pill" title="Correlate requests across services">🔗 Correlation-ready</span>
+      </div>
+    </div>
+  </header>
 
-    <details open>
-      <summary>Setup (backend owns keys)</summary>
-      <p>Validate backend configuration. Keys live in <code>.env</code> (or Key Vault later); the browser never sees them.</p>
-      <div id="setup-status"></div>
+  <main class="container">
+    <article class="glass" style="padding: 1.25rem;">
+      <div class="grid" style="align-items: flex-end;">
+        <div>
+          <p class="muted">Backend endpoint</p>
+          <label>API base URL
+            <input id="api-base" type="text" placeholder="http://localhost:8000" />
+          </label>
+          <small class="muted">Stored in localStorage so you can point this page at your laptop, dev tunnel, or deployed gateway.</small>
+        </div>
+        <div>
+          <label>&nbsp;
+            <button id="save-api-base">Save endpoint</button>
+          </label>
+          <p class="hint"><span class="info-icon">i</span><span>Use your local machine URL (e.g., <span class="inline-code">http://127.0.0.1:8000</span>) if testing the backend from this device. Keys stay in the backend.</span></p>
+        </div>
+      </div>
+    </article>
+
+    <details open class="glass" style="padding: 1rem; margin-top: 1rem;">
+      <summary><strong>Setup (backend owns keys)</strong></summary>
+      <p>Validate backend configuration. Keys live in <code>.env</code> or your secret store; the browser never sees them.</p>
+      <div id="setup-status" class="muted">Waiting to validate...</div>
       <button id="validate-btn">Validate Configuration</button>
-      <p>
+      <p class="muted">
         See <a href="../docs/05-security.md" target="_blank">security</a> and <a href="../docs/03-connectors.md" target="_blank">connectors</a> docs.
       </p>
     </details>
 
-    <section class="grid">
-      <label>Channel
-        <select id="channel">
-          <option value="web">Web</option>
-          <option value="teams">Teams</option>
-          <option value="ivr">IVR</option>
-          <option value="android">Android</option>
-        </select>
+    <section class="glass" style="padding: 1.25rem; margin-top: 1rem;">
+      <div class="grid">
+        <label>Channel
+          <select id="channel">
+            <option value="web">Web</option>
+            <option value="teams">Teams</option>
+            <option value="ivr">IVR</option>
+            <option value="android">Android</option>
+          </select>
+        </label>
+        <label>LLM provider
+          <select id="llm-provider"></select>
+        </label>
+        <label>LLM model
+          <input id="llm-model" type="text" placeholder="assistant-lite" />
+        </label>
+        <label>RAG provider
+          <select id="rag-provider"></select>
+        </label>
+        <label>RAG index
+          <input id="rag-index" type="text" placeholder="default" />
+        </label>
+        <label>STT provider
+          <select id="stt-provider"></select>
+        </label>
+        <label>STT model
+          <input id="stt-model" type="text" placeholder="narrowband" />
+        </label>
+        <label>TTS provider
+          <select id="tts-provider"></select>
+        </label>
+        <label>TTS voice
+          <input id="tts-voice" type="text" placeholder="alloy" />
+        </label>
+        <label>Service desk
+          <select id="servicedesk-provider"></select>
+        </label>
+      </div>
+
+      <div class="grid" style="margin-top: 1rem;">
+        <label><input type="checkbox" id="use-rag" checked /> Use RAG</label>
+        <label><input type="checkbox" id="include-debug" checked /> Include debug</label>
+      </div>
+
+      <label style="margin-top: 1rem;">Message
+        <textarea id="message" placeholder="Describe your issue..."></textarea>
       </label>
-      <label>LLM provider
-        <select id="llm-provider"></select>
-      </label>
-      <label>LLM model
-        <input id="llm-model" type="text" placeholder="assistant-lite" />
-      </label>
-      <label>RAG provider
-        <select id="rag-provider"></select>
-      </label>
-      <label>RAG index
-        <input id="rag-index" type="text" placeholder="default" />
-      </label>
-      <label>STT provider
-        <select id="stt-provider"></select>
-      </label>
-      <label>STT model
-        <input id="stt-model" type="text" placeholder="narrowband" />
-      </label>
-      <label>TTS provider
-        <select id="tts-provider"></select>
-      </label>
-      <label>TTS voice
-        <input id="tts-voice" type="text" placeholder="alloy" />
-      </label>
-      <label>Service desk
-        <select id="servicedesk-provider"></select>
-      </label>
+      <button id="send">Send</button>
     </section>
 
-    <label><input type="checkbox" id="use-rag" checked /> Use RAG</label>
-    <label><input type="checkbox" id="include-debug" checked /> Include debug</label>
+    <section class="grid" style="margin-top: 1rem;">
+      <article class="glass" style="padding: 1rem;">
+        <div style="display:flex; align-items:center; justify-content: space-between;">
+          <h3 style="margin-bottom: 0.25rem;">Response</h3>
+          <span class="pill" title="Server-side validation & routing">🧭 Gateway</span>
+        </div>
+        <p id="response" class="muted">Waiting for a message...</p>
+      </article>
 
-    <label>Message
-      <textarea id="message" placeholder="Describe your issue..."></textarea>
-    </label>
-    <button id="send">Send</button>
-
-    <h3>Response</h3>
-    <article id="response"></article>
-
-    <h3>Debug drawer</h3>
-    <article class="debug">
-      <pre id="debug">Waiting for response...</pre>
-    </article>
+      <article class="glass" style="padding: 1rem;">
+        <div style="display:flex; align-items:center; justify-content: space-between;">
+          <h3 style="margin-bottom: 0.25rem;">Debug drawer</h3>
+          <span class="info-icon" title="Shows routing, RAG usage, and latency">i</span>
+        </div>
+        <article class="debug">
+          <pre id="debug">Waiting for response...</pre>
+        </article>
+      </article>
+    </section>
   </main>
 
   <script>
-    const apiBase = localStorage.getItem('apiBase') || 'http://localhost:8000';
+    let apiBase = localStorage.getItem('apiBase') || 'http://localhost:8000';
     const responseEl = document.getElementById('response');
     const debugEl = document.getElementById('debug');
     const setupEl = document.getElementById('setup-status');
+    const apiBaseInput = document.getElementById('api-base');
     const selects = ['llm-provider','rag-provider','stt-provider','tts-provider','servicedesk-provider'];
 
+    apiBaseInput.value = apiBase;
+
+    function setStatus(text, cssClass = '') {
+      setupEl.classList.remove('status-ok', 'status-warning', 'status-error');
+      if (cssClass) setupEl.classList.add(cssClass);
+      setupEl.innerHTML = text;
+    }
+
     async function loadRegistry() {
-      const res = await fetch(`${apiBase}/v1/registry`);
-      const data = await res.json();
-      const map = {
-        'llm-provider': data.llm,
-        'rag-provider': data.rag,
-        'stt-provider': data.stt,
-        'tts-provider': data.tts,
-        'servicedesk-provider': [{id:'', display_name:'None', capabilities:[], supported:[], requires_auth:false, status:'enabled', configured:true}, ...data.servicedesk],
-      };
-      selects.forEach(id => {
-        const select = document.getElementById(id);
-        select.innerHTML = '';
-        map[id].forEach(item => {
-          const opt = document.createElement('option');
-          opt.value = item.id;
-          opt.textContent = `${item.display_name} ${item.requires_auth ? '(auth)' : ''}${item.configured ? '' : ' (not configured)'}`;
-          select.appendChild(opt);
+      try {
+        const res = await fetch(`${apiBase}/v1/registry`);
+        if (!res.ok) throw new Error(`Registry failed: ${res.status}`);
+        const data = await res.json();
+        const map = {
+          'llm-provider': data.llm,
+          'rag-provider': data.rag,
+          'stt-provider': data.stt,
+          'tts-provider': data.tts,
+          'servicedesk-provider': [{id:'', display_name:'None', capabilities:[], supported:[], requires_auth:false, status:'enabled', configured:true}, ...data.servicedesk],
+        };
+        selects.forEach(id => {
+          const select = document.getElementById(id);
+          select.innerHTML = '';
+          map[id].forEach(item => {
+            const opt = document.createElement('option');
+            opt.value = item.id;
+            opt.textContent = `${item.display_name} ${item.requires_auth ? '(auth)' : ''}${item.configured ? '' : ' (not configured)'}`;
+            select.appendChild(opt);
+          });
         });
-      });
+      } catch (err) {
+        responseEl.textContent = 'Unable to load registry. Check your API base URL and backend logs.';
+        debugEl.textContent = err.message;
+      }
     }
 
     async function validateConfig() {
-      setupEl.textContent = 'Validating...';
-      const res = await fetch(`${apiBase}/v1/admin/config/validate`);
-      const data = await res.json();
-      const statusList = data.results.map(item => {
-        const css = item.status === 'ok' ? 'status-ok' : (item.status === 'not_configured' ? 'status-warning' : 'status-error');
-        return `<li class="${css}">${item.service_type} :: ${item.provider} - ${item.status} (${item.reason})</li>`;
-      }).join('');
-      setupEl.innerHTML = `<strong>Overall: ${data.status}</strong><ul>${statusList}</ul>`;
+      setStatus('Validating...');
+      try {
+        const res = await fetch(`${apiBase}/v1/admin/config/validate`);
+        if (!res.ok) throw new Error(`Validation failed: ${res.status}`);
+        const data = await res.json();
+        const statusList = data.results.map(item => {
+          const css = item.status === 'ok' ? 'status-ok' : (item.status === 'not_configured' ? 'status-warning' : 'status-error');
+          return `<li class="${css}">${item.service_type} :: ${item.provider} - ${item.status} (${item.reason})</li>`;
+        }).join('');
+        setStatus(`<strong>Overall: ${data.status}</strong><ul>${statusList}</ul>`, data.status === 'ok' ? 'status-ok' : 'status-warning');
+      } catch (err) {
+        setStatus('Could not validate configuration. Confirm the backend is running and reachable.', 'status-error');
+        debugEl.textContent = err.message;
+      }
     }
 
     async function sendMessage() {
@@ -145,27 +331,41 @@
         include_debug: document.getElementById('include-debug').checked,
       };
 
-      const res = await fetch(`${apiBase}/v1/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (data.session_id) {
-        sessionStorage.setItem('gatewaySession', data.session_id);
+      try {
+        const res = await fetch(`${apiBase}/v1/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error(`Chat failed: ${res.status}`);
+        const data = await res.json();
+        if (data.session_id) {
+          sessionStorage.setItem('gatewaySession', data.session_id);
+        }
+        responseEl.textContent = data.reply || JSON.stringify(data, null, 2);
+        debugEl.textContent = JSON.stringify({
+          providers: data.providers,
+          used_rag: data.used_rag,
+          servicedesk_action: data.servicedesk_action,
+          debug: data.debug,
+          simulated_costs: { tokens: data.debug?.llm_usage?.completion_tokens || 0, seconds: (data.debug?.latency_ms || 0)/1000 }
+        }, null, 2);
+      } catch (err) {
+        responseEl.textContent = 'Request failed. Check the backend logs or adjust your API base URL.';
+        debugEl.textContent = err.message;
       }
-      responseEl.textContent = data.reply || JSON.stringify(data, null, 2);
-      debugEl.textContent = JSON.stringify({
-        providers: data.providers,
-        used_rag: data.used_rag,
-        servicedesk_action: data.servicedesk_action,
-        debug: data.debug,
-        simulated_costs: { tokens: data.debug?.llm_usage?.completion_tokens || 0, seconds: (data.debug?.latency_ms || 0)/1000 }
-      }, null, 2);
     }
 
     document.getElementById('send').addEventListener('click', sendMessage);
     document.getElementById('validate-btn').addEventListener('click', validateConfig);
+    document.getElementById('save-api-base').addEventListener('click', () => {
+      apiBase = apiBaseInput.value || 'http://localhost:8000';
+      localStorage.setItem('apiBase', apiBase);
+      setStatus('Saved endpoint. Refreshing registry...', 'status-warning');
+      loadRegistry();
+      validateConfig();
+    });
+
     loadRegistry();
     validateConfig();
   </script>
