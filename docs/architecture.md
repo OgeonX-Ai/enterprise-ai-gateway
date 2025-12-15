@@ -1,37 +1,67 @@
 # Architecture
 
-The Enterprise AI Gateway centers on a lightweight FastAPI control plane that brokers requests between clients and AI providers. The current demo ships with mocked connectors but follows a production-ready contract so you can swap in vendor SDKs later.
+The Enterprise AI Gateway is a FastAPI backend with a thin static web UI. The backend owns session memory, routing logic, and a pluggable connector registry so new providers can be added without rewriting request handling.
 
+## Component diagram
 ```mermaid
-graph TD
-    A[Web Client] -->|HTTP| B[FastAPI Gateway]
-    B --> C[Connector Registry]
-    B --> D[Memory]
-    C --> E[LLM Connector]
-    C --> F[STT/TTS Connector]
-    C --> G[Service Desk Connector]
-    D --> B
-    E --> B
-    F --> B
-    G --> B
+flowchart LR
+    browser[Web UI]
+    client[External clients]
+    api[FastAPI Gateway]
+    memory[In-memory session store]
+    registry[Provider registry]
+    llm[LLM connectors\n(mock, Azure OpenAI)]
+    rag[RAG connectors\n(mock search, Azure AI Search)]
+    speech[Speech connectors\n(mock, Azure Speech)]
+    sd[Service desk connectors\n(mock, ServiceNow, Jira SM, Remedy)]
+
+    browser -->|HTTP/JSON| api
+    client -->|HTTP/JSON| api
+    api --> memory
+    api --> registry
+    api --> llm
+    api --> rag
+    api --> speech
+    api --> sd
+    registry --> llm
+    registry --> rag
+    registry --> speech
+    registry --> sd
 ```
 
-## Components
+## Main request flow
+```mermaid
+sequenceDiagram
+    participant UI as Web/UI client
+    participant API as FastAPI gateway
+    participant Policy as Policy engine
+    participant Mem as Memory store
+    participant Router as Runtime router
+    participant LLM as LLM connector
+    participant RAG as RAG connector
+    participant SD as Service desk connector
 
-- **Gateway (FastAPI)**: Exposes a simple `/route` endpoint and health checks. It consults the registry to dispatch requests to connectors and stores short-term context in memory.
-- **Connector Registry**: Tracks available providers and adapters. In the demo it uses an in-memory map, but the interface supports dynamic registration.
-- **Memory**: Maintains per-session context and conversation history for continuity during orchestration.
-- **Connectors**: Mock implementations for LLM, speech, and service desk interactions. Replace these with real SDKs when ready.
+    UI->>API: POST /v1/chat (message + provider_selection)
+    API->>Policy: enforce(message)
+    Policy-->>API: sanitized content
+    API->>Mem: append user turn
+    API->>Router: should_open_ticket(message)
+    API->>RAG: optional search(query, index)
+    API->>LLM: generate(messages, model)
+    API->>SD: optional create/get ticket
+    API->>Mem: append assistant turn
+    API-->>UI: ChatResponse (reply, debug, actions)
+```
 
-## Data flow
+## Data flow and dependencies
+- **API routes** wrap FastAPI endpoints in `app/api/` and delegate to the shared `AgentRuntime` instance created in `app/main.py`.
+- **Policy** enforces message size and redacts PII before requests hit connectors.
+- **Memory** keeps per-session turns in-memory for continuity; a persistent store (e.g., Redis) can be added later without changing the interface.
+- **Runtime router** inspects text to decide whether to invoke a service-desk connector.
+- **Registry** is configuration-driven and exposes provider metadata via `/v1/registry` so the UI can populate dropdowns.
+- **Connectors** are async classes that normalize LLM, RAG, speech, and service-desk SDKs. Mock connectors are enabled by default for deterministic local development.
 
-1. A client sends a message payload to `/route` with a `session_id` and `target` provider.
-2. The gateway validates the request and checks the registry for a matching connector.
-3. The connector returns a response; the gateway updates memory with the exchange.
-4. The gateway returns a normalized response to the client.
-
-## Extending the design
-
-- Add middleware for authentication, rate limiting, and audit logging.
-- Swap the in-memory registry with a database-backed catalog for multitenant deployments.
-- Run multiple gateway instances behind a load balancer and back memory with Redis for horizontal scale.
+## Local dependencies
+- Python 3.11+
+- Optional Azure SDK credentials if you want to exercise the Azure connectors; otherwise the mocks run with no secrets loaded.
+- Node or other tooling is **not** required to run the backend API.
