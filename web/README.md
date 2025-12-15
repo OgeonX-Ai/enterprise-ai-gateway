@@ -1,13 +1,10 @@
-# Web (static frontend)
+# Web UI
 
-A single-page HTML client that calls the local FastAPI backend. It lists available connectors and lets you send a message for routing.
+Static HTML client that calls the FastAPI runtime. Dropdowns are populated from `/v1/registry`, and selections are passed into `/v1/chat` on each request.
 
 ## Usage
+- Open `index.html` in a browser (or host via GitHub Pages).
+- Choose channel, providers, and optional RAG/ServiceDesk usage.
+- Send a message to see the response plus debug drawer showing routing details and simulated costs.
 
-1. Start the backend: `uvicorn app.main:app --app-dir backend/app --reload`.
-2. Open `web/index.html` directly in your browser.
-3. Choose a connector, type a message, and view the response payload plus conversation memory.
-
-## GitHub Pages
-
-The `/web` folder is ready to be published via GitHub Pages. The page targets `http://localhost:8000` by default; adjust `API_BASE` in `index.html` to point to a deployed backend.
+Update `apiBase` in localStorage if pointing to a remote backend.

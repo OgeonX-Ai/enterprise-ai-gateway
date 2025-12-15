@@ -1,20 +1,26 @@
-# Backend (FastAPI)
+# Backend
 
-A minimal FastAPI app that simulates an enterprise AI gateway. It exposes a `/health` endpoint, a `/connectors` listing, and a `/route` endpoint that dispatches to mocked connectors and stores conversation context in memory.
+FastAPI runtime that owns session memory and routes across mocked and stubbed connectors for LLM, RAG, speech, and service desk systems.
 
-## Running locally
+## Quickstart
 
 ```bash
+cd backend
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-uvicorn app.main:app --app-dir backend/app --reload
+uvicorn app.main:app --reload
 ```
 
-## Key modules
+The API will run on `http://localhost:8000`. Pair it with `web/index.html` for the static UI.
 
-- `main.py`: Application setup and dependency wiring.
-- `router.py`: API routes for health checks, connector listing, and routing requests.
-- `registry.py`: In-memory connector registry.
-- `memory.py`: Simple conversation memory store keyed by session.
-- `connectors/`: Mock connector implementations.
+## Configuration
+
+Environment variables (prefixed with `GATEWAY_`) can be set in a `.env` file:
+
+- `GATEWAY_APP_NAME`: display name for the API
+- `GATEWAY_ENVIRONMENT`: environment label
+- `GATEWAY_DEBUG`: toggle debug behaviors
+- `GATEWAY_CORRELATION_ID_HEADER`: override correlation header name
+
+See `.env.example` for defaults. No secrets are required for mocked connectors.

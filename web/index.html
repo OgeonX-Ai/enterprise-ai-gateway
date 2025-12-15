@@ -1,5 +1,148 @@
 <!DOCTYPE html>
 <html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Enterprise AI Gateway</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1.5.10/css/pico.min.css" />
+  <style>
+    body { padding: 1.5rem; }
+    .debug { background: #0f172a; color: #e2e8f0; padding: 1rem; border-radius: 8px; font-family: monospace; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
+    textarea { min-height: 120px; }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <h1>Enterprise AI Gateway</h1>
+    <p>Select providers, choose a channel, and chat with the gateway-owned runtime.</p>
+
+    <section class="grid">
+      <label>Channel
+        <select id="channel">
+          <option value="web">Web</option>
+          <option value="teams">Teams</option>
+          <option value="ivr">IVR</option>
+          <option value="android">Android</option>
+        </select>
+      </label>
+      <label>LLM provider
+        <select id="llm-provider"></select>
+      </label>
+      <label>LLM model
+        <input id="llm-model" type="text" placeholder="assistant-lite" />
+      </label>
+      <label>RAG provider
+        <select id="rag-provider"></select>
+      </label>
+      <label>RAG index
+        <input id="rag-index" type="text" placeholder="default" />
+      </label>
+      <label>STT provider
+        <select id="stt-provider"></select>
+      </label>
+      <label>STT model
+        <input id="stt-model" type="text" placeholder="narrowband" />
+      </label>
+      <label>TTS provider
+        <select id="tts-provider"></select>
+      </label>
+      <label>TTS voice
+        <input id="tts-voice" type="text" placeholder="alloy" />
+      </label>
+      <label>Service desk
+        <select id="servicedesk-provider"></select>
+      </label>
+    </section>
+
+    <label><input type="checkbox" id="use-rag" checked /> Use RAG</label>
+    <label><input type="checkbox" id="include-debug" checked /> Include debug</label>
+
+    <label>Message
+      <textarea id="message" placeholder="Describe your issue..."></textarea>
+    </label>
+    <button id="send">Send</button>
+
+    <h3>Response</h3>
+    <article id="response"></article>
+
+    <h3>Debug drawer</h3>
+    <article class="debug">
+      <pre id="debug">Waiting for response...</pre>
+    </article>
+  </main>
+
+  <script>
+    const apiBase = localStorage.getItem('apiBase') || 'http://localhost:8000';
+    const responseEl = document.getElementById('response');
+    const debugEl = document.getElementById('debug');
+    const selects = ['llm-provider','rag-provider','stt-provider','tts-provider','servicedesk-provider'];
+
+    async function loadRegistry() {
+      const res = await fetch(`${apiBase}/v1/registry`);
+      const data = await res.json();
+      const map = {
+        'llm-provider': data.llm,
+        'rag-provider': data.rag,
+        'stt-provider': data.stt,
+        'tts-provider': data.tts,
+        'servicedesk-provider': [{id:'', display_name:'None', capabilities:[], supported:[], requires_auth:false, status:'enabled'}, ...data.servicedesk],
+      };
+      selects.forEach(id => {
+        const select = document.getElementById(id);
+        select.innerHTML = '';
+        map[id].forEach(item => {
+          const opt = document.createElement('option');
+          opt.value = item.id;
+          opt.textContent = `${item.display_name} ${item.requires_auth ? '(auth)' : ''}`;
+          select.appendChild(opt);
+        });
+      });
+    }
+
+    async function sendMessage() {
+      const payload = {
+        session_id: sessionStorage.getItem('gatewaySession') || null,
+        channel: document.getElementById('channel').value,
+        message: document.getElementById('message').value,
+        provider_selection: {
+          llm_provider: document.getElementById('llm-provider').value,
+          llm_model: document.getElementById('llm-model').value || 'assistant-lite',
+          rag_provider: document.getElementById('rag-provider').value || null,
+          rag_index: document.getElementById('rag-index').value || null,
+          stt_provider: document.getElementById('stt-provider').value || null,
+          stt_model: document.getElementById('stt-model').value || null,
+          tts_provider: document.getElementById('tts-provider').value || null,
+          tts_voice: document.getElementById('tts-voice').value || null,
+          servicedesk_provider: document.getElementById('servicedesk-provider').value || null,
+        },
+        use_rag: document.getElementById('use-rag').checked,
+        include_debug: document.getElementById('include-debug').checked,
+      };
+
+      const res = await fetch(`${apiBase}/v1/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (data.session_id) {
+        sessionStorage.setItem('gatewaySession', data.session_id);
+      }
+      responseEl.textContent = data.reply || JSON.stringify(data, null, 2);
+      debugEl.textContent = JSON.stringify({
+        providers: data.providers,
+        used_rag: data.used_rag,
+        servicedesk_action: data.servicedesk_action,
+        debug: data.debug,
+        simulated_costs: { tokens: 42, seconds: 0.2 }
+      }, null, 2);
+    }
+
+    document.getElementById('send').addEventListener('click', sendMessage);
+    loadRegistry();
+  </script>
+</body>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
