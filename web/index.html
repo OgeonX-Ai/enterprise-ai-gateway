@@ -257,6 +257,59 @@
     const setupEl = document.getElementById('setup-status');
     const apiBaseInput = document.getElementById('api-base');
     const selects = ['llm-provider','rag-provider','stt-provider','tts-provider','servicedesk-provider'];
+    const presetEl = document.getElementById('preset');
+
+    const fallbackRegistry = {
+      llm: [
+        { id: 'ollama-local', display_name: 'Local Ollama', configured: true, requires_auth: false },
+        { id: 'elevenlabs-llm', display_name: 'ElevenLabs LLM (stub)', configured: false, requires_auth: true },
+      ],
+      rag: [
+        { id: 'local-embeddings', display_name: 'Local embeddings (stub)', configured: false, requires_auth: false },
+      ],
+      stt: [
+        { id: 'whisper-local', display_name: 'Local Whisper', configured: true, requires_auth: false },
+        { id: 'elevenlabs-stt', display_name: 'ElevenLabs STT (stub)', configured: false, requires_auth: true },
+      ],
+      tts: [
+        { id: 'speakback-local', display_name: 'Local speak-back', configured: true, requires_auth: false },
+        { id: 'elevenlabs-tts', display_name: 'ElevenLabs TTS (stub)', configured: false, requires_auth: true },
+      ],
+      servicedesk: [
+        { id: 'freshdesk-stub', display_name: 'Service desk (stub)', configured: false, requires_auth: true },
+      ],
+    };
+
+    const presets = {
+      'demo-local': {
+        llm_provider: 'ollama-local',
+        llm_model: 'assistant-lite',
+        rag_provider: 'local-embeddings',
+        rag_index: 'default',
+        stt_provider: 'whisper-local',
+        stt_model: 'narrowband',
+        tts_provider: 'speakback-local',
+        tts_voice: 'alloy',
+      },
+      'elevenlabs': {
+        llm_provider: 'elevenlabs-llm',
+        llm_model: 'smart-context',
+        rag_provider: 'local-embeddings',
+        rag_index: 'default',
+        stt_provider: 'elevenlabs-stt',
+        stt_model: 'default',
+        tts_provider: 'elevenlabs-tts',
+        tts_voice: 'eleven-voice',
+      },
+    };
+
+    apiBaseInput.value = apiBase;
+
+    function setStatus(text, cssClass = '') {
+      setupEl.classList.remove('status-ok', 'status-warning', 'status-error');
+      if (cssClass) setupEl.classList.add(cssClass);
+      setupEl.innerHTML = text;
+    }
 
     apiBaseInput.value = apiBase;
 
@@ -368,6 +421,7 @@
 
     loadRegistry();
     validateConfig();
+    applyPreset(presetEl.value);
   </script>
 </body>
 </html>
