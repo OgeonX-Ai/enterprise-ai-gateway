@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Enterprise AI Gateway</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+        color: #0f172a;
+        background: #f8fafc;
+      }
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+      }
+      .card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 1rem;
+        box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.05);
+      }
+      label {
+        display: block;
+        margin-top: 0.75rem;
+        font-weight: bold;
+      }
+      input,
+      select,
+      textarea {
+        width: 100%;
+        padding: 0.5rem;
+        margin-top: 0.25rem;
+        border: 1px solid #cbd5e1;
+        border-radius: 4px;
+        font-size: 1rem;
+        font-family: inherit;
+      }
+      button {
+        margin-top: 1rem;
+        padding: 0.75rem 1.25rem;
+        background: #2563eb;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 1rem;
+      }
+      button:disabled {
+        background: #94a3b8;
+        cursor: not-allowed;
+      }
+      pre {
+        background: #0f172a;
+        color: #e2e8f0;
+        padding: 1rem;
+        border-radius: 6px;
+        overflow-x: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>
+        <h1>Enterprise AI Gateway</h1>
+        <p>Static frontend calling a local FastAPI control plane.</p>
+      </div>
+      <small id="status">Loading connectors…</small>
+    </header>
+
+    <section class="card">
+      <form id="route-form">
+        <label for="session">Session ID</label>
+        <input id="session" name="session" value="demo-session" required />
+
+        <label for="target">Target connector</label>
+        <select id="target" name="target" required></select>
+
+        <label for="message">Message</label>
+        <textarea id="message" name="message" rows="3" placeholder="Ask a question or describe a task" required></textarea>
+
+        <button type="submit">Send to gateway</button>
+      </form>
+    </section>
+
+    <section class="card" style="margin-top: 1rem">
+      <h3>Gateway response</h3>
+      <pre id="output">Awaiting request…</pre>
+    </section>
+
+    <script>
+      const API_BASE = 'http://localhost:8000';
+      const targetSelect = document.getElementById('target');
+      const statusEl = document.getElementById('status');
+      const output = document.getElementById('output');
+
+      async function loadConnectors() {
+        statusEl.textContent = 'Loading connectors…';
+        try {
+          const res = await fetch(`${API_BASE}/connectors`);
+          const data = await res.json();
+          targetSelect.innerHTML = '';
+          data.connectors.forEach((name) => {
+            const option = document.createElement('option');
+            option.value = name;
+            option.textContent = name;
+            targetSelect.appendChild(option);
+          });
+          statusEl.textContent = 'Backend ready';
+        } catch (err) {
+          statusEl.textContent = 'Backend unavailable';
+        }
+      }
+
+      document.getElementById('route-form').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const payload = {
+          session_id: document.getElementById('session').value,
+          target: targetSelect.value,
+          message: document.getElementById('message').value,
+        };
+
+        output.textContent = 'Sending...';
+        try {
+          const res = await fetch(`${API_BASE}/route`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          const data = await res.json();
+          output.textContent = JSON.stringify(data, null, 2);
+        } catch (err) {
+          output.textContent = 'Request failed: ' + err.message;
+        }
+      });
+
+      loadConnectors();
+    </script>
+  </body>
+</html>
