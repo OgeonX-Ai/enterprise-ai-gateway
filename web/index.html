@@ -1,146 +1,173 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Enterprise AI Gateway</title>
-    <style>
-      body {
-        font-family: Arial, sans-serif;
-        max-width: 800px;
-        margin: 2rem auto;
-        padding: 0 1rem;
-        color: #0f172a;
-        background: #f8fafc;
-      }
-      header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1.5rem;
-      }
-      .card {
-        background: #ffffff;
-        border: 1px solid #e2e8f0;
-        border-radius: 8px;
-        padding: 1rem;
-        box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.05);
-      }
-      label {
-        display: block;
-        margin-top: 0.75rem;
-        font-weight: bold;
-      }
-      input,
-      select,
-      textarea {
-        width: 100%;
-        padding: 0.5rem;
-        margin-top: 0.25rem;
-        border: 1px solid #cbd5e1;
-        border-radius: 4px;
-        font-size: 1rem;
-        font-family: inherit;
-      }
-      button {
-        margin-top: 1rem;
-        padding: 0.75rem 1.25rem;
-        background: #2563eb;
-        color: white;
-        border: none;
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 1rem;
-      }
-      button:disabled {
-        background: #94a3b8;
-        cursor: not-allowed;
-      }
-      pre {
-        background: #0f172a;
-        color: #e2e8f0;
-        padding: 1rem;
-        border-radius: 6px;
-        overflow-x: auto;
-      }
-    </style>
-  </head>
-  <body>
-    <header>
-      <div>
-        <h1>Enterprise AI Gateway</h1>
-        <p>Static frontend calling a local FastAPI control plane.</p>
-      </div>
-      <small id="status">Loading connectors…</small>
-    </header>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Enterprise AI Gateway</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1.5.10/css/pico.min.css" />
+  <style>
+    body { padding: 1.5rem; }
+    .debug { background: #0f172a; color: #e2e8f0; padding: 1rem; border-radius: 8px; font-family: monospace; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
+    textarea { min-height: 120px; }
+    .status-ok { color: #16a34a; }
+    .status-error { color: #dc2626; }
+    .status-warning { color: #d97706; }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <h1>Enterprise AI Gateway</h1>
+    <p>Select providers, choose a channel, and chat with the gateway-owned runtime.</p>
 
-    <section class="card">
-      <form id="route-form">
-        <label for="session">Session ID</label>
-        <input id="session" name="session" value="demo-session" required />
+    <details open>
+      <summary>Setup (backend owns keys)</summary>
+      <p>Validate backend configuration. Keys live in <code>.env</code> (or Key Vault later); the browser never sees them.</p>
+      <div id="setup-status"></div>
+      <button id="validate-btn">Validate Configuration</button>
+      <p>
+        See <a href="../docs/05-security.md" target="_blank">security</a> and <a href="../docs/03-connectors.md" target="_blank">connectors</a> docs.
+      </p>
+    </details>
 
-        <label for="target">Target connector</label>
-        <select id="target" name="target" required></select>
-
-        <label for="message">Message</label>
-        <textarea id="message" name="message" rows="3" placeholder="Ask a question or describe a task" required></textarea>
-
-        <button type="submit">Send to gateway</button>
-      </form>
+    <section class="grid">
+      <label>Channel
+        <select id="channel">
+          <option value="web">Web</option>
+          <option value="teams">Teams</option>
+          <option value="ivr">IVR</option>
+          <option value="android">Android</option>
+        </select>
+      </label>
+      <label>LLM provider
+        <select id="llm-provider"></select>
+      </label>
+      <label>LLM model
+        <input id="llm-model" type="text" placeholder="assistant-lite" />
+      </label>
+      <label>RAG provider
+        <select id="rag-provider"></select>
+      </label>
+      <label>RAG index
+        <input id="rag-index" type="text" placeholder="default" />
+      </label>
+      <label>STT provider
+        <select id="stt-provider"></select>
+      </label>
+      <label>STT model
+        <input id="stt-model" type="text" placeholder="narrowband" />
+      </label>
+      <label>TTS provider
+        <select id="tts-provider"></select>
+      </label>
+      <label>TTS voice
+        <input id="tts-voice" type="text" placeholder="alloy" />
+      </label>
+      <label>Service desk
+        <select id="servicedesk-provider"></select>
+      </label>
     </section>
 
-    <section class="card" style="margin-top: 1rem">
-      <h3>Gateway response</h3>
-      <pre id="output">Awaiting request…</pre>
-    </section>
+    <label><input type="checkbox" id="use-rag" checked /> Use RAG</label>
+    <label><input type="checkbox" id="include-debug" checked /> Include debug</label>
 
-    <script>
-      const API_BASE = 'http://localhost:8000';
-      const targetSelect = document.getElementById('target');
-      const statusEl = document.getElementById('status');
-      const output = document.getElementById('output');
+    <label>Message
+      <textarea id="message" placeholder="Describe your issue..."></textarea>
+    </label>
+    <button id="send">Send</button>
 
-      async function loadConnectors() {
-        statusEl.textContent = 'Loading connectors…';
-        try {
-          const res = await fetch(`${API_BASE}/connectors`);
-          const data = await res.json();
-          targetSelect.innerHTML = '';
-          data.connectors.forEach((name) => {
-            const option = document.createElement('option');
-            option.value = name;
-            option.textContent = name;
-            targetSelect.appendChild(option);
-          });
-          statusEl.textContent = 'Backend ready';
-        } catch (err) {
-          statusEl.textContent = 'Backend unavailable';
-        }
-      }
+    <h3>Response</h3>
+    <article id="response"></article>
 
-      document.getElementById('route-form').addEventListener('submit', async (event) => {
-        event.preventDefault();
-        const payload = {
-          session_id: document.getElementById('session').value,
-          target: targetSelect.value,
-          message: document.getElementById('message').value,
-        };
+    <h3>Debug drawer</h3>
+    <article class="debug">
+      <pre id="debug">Waiting for response...</pre>
+    </article>
+  </main>
 
-        output.textContent = 'Sending...';
-        try {
-          const res = await fetch(`${API_BASE}/route`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-          });
-          const data = await res.json();
-          output.textContent = JSON.stringify(data, null, 2);
-        } catch (err) {
-          output.textContent = 'Request failed: ' + err.message;
-        }
+  <script>
+    const apiBase = localStorage.getItem('apiBase') || 'http://localhost:8000';
+    const responseEl = document.getElementById('response');
+    const debugEl = document.getElementById('debug');
+    const setupEl = document.getElementById('setup-status');
+    const selects = ['llm-provider','rag-provider','stt-provider','tts-provider','servicedesk-provider'];
+
+    async function loadRegistry() {
+      const res = await fetch(`${apiBase}/v1/registry`);
+      const data = await res.json();
+      const map = {
+        'llm-provider': data.llm,
+        'rag-provider': data.rag,
+        'stt-provider': data.stt,
+        'tts-provider': data.tts,
+        'servicedesk-provider': [{id:'', display_name:'None', capabilities:[], supported:[], requires_auth:false, status:'enabled', configured:true}, ...data.servicedesk],
+      };
+      selects.forEach(id => {
+        const select = document.getElementById(id);
+        select.innerHTML = '';
+        map[id].forEach(item => {
+          const opt = document.createElement('option');
+          opt.value = item.id;
+          opt.textContent = `${item.display_name} ${item.requires_auth ? '(auth)' : ''}${item.configured ? '' : ' (not configured)'}`;
+          select.appendChild(opt);
+        });
       });
+    }
 
-      loadConnectors();
-    </script>
-  </body>
+    async function validateConfig() {
+      setupEl.textContent = 'Validating...';
+      const res = await fetch(`${apiBase}/v1/admin/config/validate`);
+      const data = await res.json();
+      const statusList = data.results.map(item => {
+        const css = item.status === 'ok' ? 'status-ok' : (item.status === 'not_configured' ? 'status-warning' : 'status-error');
+        return `<li class="${css}">${item.service_type} :: ${item.provider} - ${item.status} (${item.reason})</li>`;
+      }).join('');
+      setupEl.innerHTML = `<strong>Overall: ${data.status}</strong><ul>${statusList}</ul>`;
+    }
+
+    async function sendMessage() {
+      const payload = {
+        session_id: sessionStorage.getItem('gatewaySession') || null,
+        channel: document.getElementById('channel').value,
+        message: document.getElementById('message').value,
+        provider_selection: {
+          llm_provider: document.getElementById('llm-provider').value,
+          llm_model: document.getElementById('llm-model').value || 'assistant-lite',
+          rag_provider: document.getElementById('rag-provider').value || null,
+          rag_index: document.getElementById('rag-index').value || null,
+          stt_provider: document.getElementById('stt-provider').value || null,
+          stt_model: document.getElementById('stt-model').value || null,
+          tts_provider: document.getElementById('tts-provider').value || null,
+          tts_voice: document.getElementById('tts-voice').value || null,
+          servicedesk_provider: document.getElementById('servicedesk-provider').value || null,
+        },
+        use_rag: document.getElementById('use-rag').checked,
+        include_debug: document.getElementById('include-debug').checked,
+      };
+
+      const res = await fetch(`${apiBase}/v1/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (data.session_id) {
+        sessionStorage.setItem('gatewaySession', data.session_id);
+      }
+      responseEl.textContent = data.reply || JSON.stringify(data, null, 2);
+      debugEl.textContent = JSON.stringify({
+        providers: data.providers,
+        used_rag: data.used_rag,
+        servicedesk_action: data.servicedesk_action,
+        debug: data.debug,
+        simulated_costs: { tokens: data.debug?.llm_usage?.completion_tokens || 0, seconds: (data.debug?.latency_ms || 0)/1000 }
+      }, null, 2);
+    }
+
+    document.getElementById('send').addEventListener('click', sendMessage);
+    document.getElementById('validate-btn').addEventListener('click', validateConfig);
+    loadRegistry();
+    validateConfig();
+  </script>
+</body>
 </html>
