@@ -9,12 +9,12 @@
 
 2. **Run the backend**
    ```bash
-   uvicorn app.main:app --app-dir backend --reload
+   uvicorn app.main:app --app-dir backend/app --reload
    ```
 
 3. **Open the frontend**
    - Launch `web/index.html` in your browser.
-   - Select providers, send a message, and review the debug drawer for routing decisions.
+   - Select a connector, send a message, and observe the response plus conversation memory.
 
 4. **Capture screenshots**
    Save any captures to `demo/screenshots/` for easy sharing.
