@@ -9,6 +9,12 @@ Vendor-agnostic enterprise AI gateway that owns a single agent runtime, session 
 - Correlation IDs and structured logging for traceability
 - Static web UI with provider selectors, channel toggle, and debug drawer
 
+## Supported providers
+- Speech-to-Text (STT): local Whisper (faster-whisper), Azure Speech, OpenAI Whisper API, Deepgram (stub)
+- Large Language Models (LLM): Azure OpenAI, OpenAI, Anthropic, Ollama (local), LLaMA.cpp (stub)
+- Text-to-Speech (TTS): Azure Speech TTS, local TTS stub
+- Service Desk: ServiceNow, Jira Service Management, Remedy
+
 ## Quickstart (≤10 minutes)
 1. Prereqs: Python 3.11+, `make`, and optionally Azure credentials if you want to exercise the Azure connectors (mocks are default).
 2. Bootstrap a virtualenv and install dev dependencies:
