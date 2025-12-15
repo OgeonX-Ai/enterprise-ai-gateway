@@ -61,6 +61,8 @@ sequenceDiagram
 - **Registry** is configuration-driven and exposes provider metadata via `/v1/registry` so the UI can populate dropdowns.
 - **Connectors** are async classes that normalize LLM, RAG, speech, and service-desk SDKs. Mock connectors are enabled by default for deterministic local development.
 
+For Azure capacity and deployment considerations across the gateway and connectors, see the [Azure Scalability Report](azure/scalability-report.md).
+
 ## Local dependencies
 - Python 3.11+
 - Optional Azure SDK credentials if you want to exercise the Azure connectors; otherwise the mocks run with no secrets loaded.
