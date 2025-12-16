@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     hardware_hint: str = Field("Lenovo T480 (CPU)", alias="HARDWARE_HINT")
     dev_mode: bool = Field(True, description="Expose debug data and unconfigured providers")
     correlation_id_header: str = Field("X-Correlation-ID", description="Header used for correlation IDs")
+    enable_debug_stream: bool = Field(True, alias="ENABLE_DEBUG_STREAM", description="Enable SSE debug stream")
 
     # Feature flags
     use_azure_openai: bool = Field(False, alias="USE_AZURE_OPENAI")
@@ -42,8 +43,18 @@ class Settings(BaseSettings):
 
     # ServiceNow
     servicenow_instance_url: Optional[str] = Field(None, alias="SERVICENOW_INSTANCE_URL")
+    servicenow_auth_mode: str = Field("basic", alias="SERVICENOW_AUTH_MODE")
+    servicenow_username: Optional[str] = Field(None, alias="SERVICENOW_USERNAME")
+    servicenow_password: Optional[str] = Field(None, alias="SERVICENOW_PASSWORD")
     servicenow_client_id: Optional[str] = Field(None, alias="SERVICENOW_CLIENT_ID")
     servicenow_client_secret: Optional[str] = Field(None, alias="SERVICENOW_CLIENT_SECRET")
+    servicenow_token_url: Optional[str] = Field(None, alias="SERVICENOW_TOKEN_URL")
+    servicenow_mock_mode: bool = Field(True, alias="SERVICENOW_MOCK_MODE")
+
+    cors_allow_origins: str = Field(
+        "https://ogeonx-ai.github.io,http://127.0.0.1:5500,http://localhost:5500",
+        alias="CORS_ALLOW_ORIGINS",
+    )
 
     # Jira Service Management
     jira_base_url: Optional[str] = Field(None, alias="JIRA_BASE_URL")
