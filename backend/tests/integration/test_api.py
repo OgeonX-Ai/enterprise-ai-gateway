@@ -106,6 +106,8 @@ def test_chat_rejects_unconfigured_provider(app_instance):
     with pytest.raises(GatewayException):
         asyncio.run(runtime.handle_chat(chat_payload, correlation_id=None))
 
+    methods = _route_methods(app_instance, "/healthz")
+    assert "POST" not in methods
 
 def test_audio_transcribe_and_negative_provider(app_instance):
     runtime = app_instance.state.runtime

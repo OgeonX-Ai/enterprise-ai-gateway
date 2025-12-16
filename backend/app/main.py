@@ -55,6 +55,13 @@ app.mount(
     name="whisper-tools",
 )
 
+static_whisper_dir = Path(__file__).parent / "static" / "whisper"
+app.mount(
+    "/tools/whisper",
+    StaticFiles(directory=static_whisper_dir, html=True),
+    name="whisper-tools",
+)
+
 
 @app.middleware("http")
 async def ensure_correlation_id(request: Request, call_next):
