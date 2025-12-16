@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Whisper Playground (Local CPU Demo)</title>
+    <style>
+      :root {
+        --bg: #0f172a;
+        --card: #111827;
+        --muted: #9ca3af;
+        --accent: #38bdf8;
+        --accent-2: #a855f7;
+        --border: #1f2937;
+        --success: #22c55e;
+        --warn: #f59e0b;
+        --danger: #ef4444;
+        --font: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: var(--font);
+        background: radial-gradient(circle at 20% 20%, rgba(56, 189, 248, 0.15), transparent 25%),
+          radial-gradient(circle at 80% 10%, rgba(168, 85, 247, 0.15), transparent 25%),
+          radial-gradient(circle at 50% 80%, rgba(34, 197, 94, 0.12), transparent 25%),
+          var(--bg);
+        color: #e5e7eb;
+        min-height: 100vh;
+      }
+
+      .page {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 48px 24px 64px;
+      }
+
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+        margin-bottom: 18px;
+      }
+
+      .title {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 28px;
+        letter-spacing: -0.5px;
+      }
+
+      .subtitle {
+        color: var(--muted);
+        margin: 0;
+      }
+
+      .badge {
+        background: rgba(56, 189, 248, 0.12);
+        color: #a5f3fc;
+        padding: 8px 12px;
+        border-radius: 999px;
+        font-weight: 600;
+        border: 1px solid rgba(56, 189, 248, 0.3);
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 380px 1fr;
+        gap: 18px;
+      }
+
+      .card {
+        background: linear-gradient(145deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0));
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        padding: 18px 20px;
+        box-shadow: 0 18px 36px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.02);
+      }
+
+      .card h3 {
+        margin: 0 0 10px 0;
+      }
+
+      .controls {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .control-row {
+        display: grid;
+        grid-template-columns: 1fr 120px;
+        gap: 12px;
+        align-items: center;
+      }
+
+      label {
+        font-size: 14px;
+        color: #cbd5e1;
+      }
+
+      select,
+      input[type="range"],
+      input[type="checkbox"] {
+        width: 100%;
+      }
+
+      select,
+      input[type="range"] {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 8px 10px;
+        color: #e5e7eb;
+        outline: none;
+      }
+
+      input[type="range"] {
+        -webkit-appearance: none;
+        height: 10px;
+      }
+
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        cursor: pointer;
+      }
+
+      .toggle {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 14px;
+      }
+
+      .buttons {
+        display: flex;
+        gap: 10px;
+        margin-top: 4px;
+      }
+
+      button {
+        border: none;
+        border-radius: 12px;
+        padding: 12px 16px;
+        font-weight: 700;
+        cursor: pointer;
+        color: #0b1220;
+        transition: all 0.2s ease;
+      }
+
+      button.primary {
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        color: #04101f;
+        flex: 1;
+      }
+
+      button.secondary {
+        background: rgba(255, 255, 255, 0.08);
+        color: #e5e7eb;
+        border: 1px solid var(--border);
+      }
+
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .status {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        font-weight: 700;
+        color: #e5e7eb;
+        margin-bottom: 6px;
+      }
+
+      .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+      }
+
+      .dot.idle {
+        background: var(--muted);
+      }
+      .dot.listening {
+        background: var(--success);
+        box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.15);
+      }
+      .dot.silence {
+        background: var(--warn);
+        box-shadow: 0 0 0 6px rgba(245, 158, 11, 0.15);
+      }
+      .dot.thinking {
+        background: var(--accent);
+        box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.15);
+      }
+
+      .console,
+      .results {
+        background: rgba(8, 12, 24, 0.7);
+        border-radius: 14px;
+        border: 1px solid var(--border);
+        padding: 12px;
+        height: 240px;
+        overflow: auto;
+        font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      .console p,
+      .results p {
+        margin: 0 0 6px 0;
+        color: #cbd5e1;
+      }
+
+      .metrics {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 8px;
+      }
+
+      .pill {
+        padding: 8px 10px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid var(--border);
+        color: #e5e7eb;
+        font-weight: 600;
+        font-size: 13px;
+      }
+
+      .disclaimer {
+        margin-top: 14px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px dashed var(--border);
+        padding: 12px;
+        border-radius: 12px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .section-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 8px;
+      }
+
+      .tag {
+        background: rgba(168, 85, 247, 0.18);
+        border: 1px solid rgba(168, 85, 247, 0.4);
+        color: #e9d5ff;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-weight: 700;
+        font-size: 12px;
+      }
+
+      .row {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 8px;
+      }
+
+      .row .stack {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .row input[type="range"] {
+        margin-top: 2px;
+      }
+
+      .summary-text {
+        font-size: 15px;
+        font-weight: 600;
+        margin-top: 8px;
+      }
+
+      @media (max-width: 1024px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header>
+        <div class="title">
+          <h1>Whisper Playground (Local CPU Demo)</h1>
+          <p class="subtitle">Test speech-to-text performance on your own machine — no GPU required.</p>
+        </div>
+        <span class="badge">Experimental / Educational</span>
+      </header>
+
+      <div class="grid">
+        <div class="card">
+          <div class="section-title">
+            <h3>Recorder & Settings</h3>
+            <span class="tag" id="status">Idle</span>
+          </div>
+
+          <div class="buttons">
+            <button class="primary" id="startBtn">Unmute & Start</button>
+            <button class="secondary" id="stopBtn" disabled>Stop</button>
+          </div>
+
+          <div class="controls">
+            <div class="control-row">
+              <div>
+                <label for="modelSelect">Model</label>
+                <select id="modelSelect">
+                  <option value="tiny">tiny (fastest)</option>
+                  <option value="small" selected>small (balanced)</option>
+                  <option value="medium">medium (slowest)</option>
+                </select>
+              </div>
+              <div>
+                <label for="languageSelect">Language</label>
+                <select id="languageSelect">
+                  <option value="auto">auto-detect</option>
+                  <option value="en">English</option>
+                  <option value="fi">Finnish</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="stack">
+                <label for="beamRange">Beam size: <span id="beamValue">1</span></label>
+                <input type="range" id="beamRange" min="1" max="5" step="1" value="1" />
+              </div>
+              <div class="stack">
+                <label for="chunkRange">Chunk length (s): <span id="chunkValue">4</span></label>
+                <input type="range" id="chunkRange" min="1" max="6" step="1" value="4" />
+              </div>
+            </div>
+
+            <label class="toggle">
+              <input type="checkbox" id="vadToggle" checked />
+              <span>Voice activity detection (trim silence)</span>
+            </label>
+
+            <div class="disclaimer">
+              This demo runs Whisper locally on CPU. Latency and accuracy depend on your hardware. Audio is processed in-memory and
+              not stored on the server.
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="section-title">
+            <h3>Live Console</h3>
+            <span class="tag">Real-time status</span>
+          </div>
+          <div class="console" id="console"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 16px">
+        <div class="section-title">
+          <h3>Results</h3>
+          <span class="tag">Transcription</span>
+        </div>
+        <div class="results" id="results">Waiting for audio...</div>
+        <div class="metrics" id="metrics"></div>
+      </div>
+    </div>
+
+    <script>
+      const statusTag = document.getElementById("status");
+      const consoleEl = document.getElementById("console");
+      const resultsEl = document.getElementById("results");
+      const metricsEl = document.getElementById("metrics");
+      const startBtn = document.getElementById("startBtn");
+      const stopBtn = document.getElementById("stopBtn");
+      const modelSelect = document.getElementById("modelSelect");
+      const languageSelect = document.getElementById("languageSelect");
+      const beamRange = document.getElementById("beamRange");
+      const beamValue = document.getElementById("beamValue");
+      const chunkRange = document.getElementById("chunkRange");
+      const chunkValue = document.getElementById("chunkValue");
+      const vadToggle = document.getElementById("vadToggle");
+
+      let mediaRecorder = null;
+      let isRecording = false;
+      let audioContext = null;
+      let transcript = "";
+
+      beamRange.addEventListener("input", () => (beamValue.textContent = beamRange.value));
+      chunkRange.addEventListener("input", () => (chunkValue.textContent = chunkRange.value));
+
+      startBtn.addEventListener("click", startRecording);
+      stopBtn.addEventListener("click", stopRecording);
+
+      function setStatus(state) {
+        const dotClasses = {
+          idle: "Idle",
+          listening: "Listening",
+          silence: "Silence",
+          thinking: "Thinking",
+        };
+        statusTag.textContent = dotClasses[state] || state;
+        statusTag.style.background = "rgba(255,255,255,0.05)";
+        statusTag.style.color = "#e5e7eb";
+      }
+
+      function logLine(text, accent = false) {
+        const p = document.createElement("p");
+        p.textContent = text;
+        if (accent) {
+          p.style.color = "#c084fc";
+        }
+        consoleEl.appendChild(p);
+        consoleEl.scrollTop = consoleEl.scrollHeight;
+      }
+
+      async function startRecording() {
+        if (isRecording) return;
+        transcript = "";
+        resultsEl.textContent = "Listening...";
+        metricsEl.innerHTML = "";
+        consoleEl.innerHTML = "";
+        logLine("[client] Requesting microphone access...");
+
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          const mimeType = chooseMimeType();
+          audioContext = audioContext || new AudioContext();
+          mediaRecorder = new MediaRecorder(stream, { mimeType });
+
+          mediaRecorder.onstart = () => {
+            isRecording = true;
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            setStatus("listening");
+            logLine(`[client] Recording started (${mimeType})`);
+          };
+
+          mediaRecorder.ondataavailable = async (event) => {
+            if (event.data && event.data.size > 0) {
+              const wavBlob = await ensureWav(event.data);
+              logLine(`[client] Chunk captured (${(wavBlob.size / 1024).toFixed(1)} KB)`);
+              await sendChunk(wavBlob);
+            } else {
+              setStatus("silence");
+            }
+          };
+
+          mediaRecorder.onstop = async () => {
+            setStatus("thinking");
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            logLine("[client] Recording stopped. Processing...");
+          };
+
+          const timesliceMs = Number(chunkRange.value) * 1000;
+          mediaRecorder.start(timesliceMs);
+        } catch (err) {
+          logLine(`[error] ${err.message || err}`, true);
+          setStatus("idle");
+        }
+      }
+
+      function stopRecording() {
+        if (mediaRecorder && isRecording) {
+          mediaRecorder.stop();
+          isRecording = false;
+          setStatus("thinking");
+        }
+      }
+
+      function chooseMimeType() {
+        const candidates = ["audio/wav", "audio/webm;codecs=opus", "audio/ogg;codecs=opus"];
+        for (const type of candidates) {
+          if (MediaRecorder.isTypeSupported(type)) return type;
+        }
+        return "audio/webm";
+      }
+
+      async function ensureWav(blob) {
+        if (blob.type.includes("wav")) return blob;
+        const arrayBuffer = await blob.arrayBuffer();
+        const audioBuffer = await (audioContext || new AudioContext()).decodeAudioData(arrayBuffer);
+        const wavData = await audioBufferToWav(audioBuffer);
+        return new Blob([wavData], { type: "audio/wav" });
+      }
+
+      function audioBufferToWav(buffer) {
+        const numOfChan = 1;
+        const sampleRate = 16000;
+        const offline = new OfflineAudioContext(numOfChan, buffer.duration * sampleRate, sampleRate);
+        const source = offline.createBufferSource();
+        const mono = offline.createBuffer(1, buffer.length, buffer.sampleRate);
+        const channel = mono.getChannelData(0);
+        buffer.copyFromChannel(channel, 0);
+        source.buffer = mono;
+        source.connect(offline.destination);
+        source.start(0);
+        return offline.startRendering().then((rendered) => {
+          const pcm = rendered.getChannelData(0);
+          const wavBuffer = new ArrayBuffer(44 + pcm.length * 2);
+          const view = new DataView(wavBuffer);
+          writeString(view, 0, "RIFF");
+          view.setUint32(4, 36 + pcm.length * 2, true);
+          writeString(view, 8, "WAVE");
+          writeString(view, 12, "fmt ");
+          view.setUint32(16, 16, true);
+          view.setUint16(20, 1, true);
+          view.setUint16(22, 1, true);
+          view.setUint32(24, sampleRate, true);
+          view.setUint32(28, sampleRate * 2, true);
+          view.setUint16(32, 2, true);
+          view.setUint16(34, 16, true);
+          writeString(view, 36, "data");
+          view.setUint32(40, pcm.length * 2, true);
+          floatTo16BitPCM(view, 44, pcm);
+          return view.buffer;
+        });
+      }
+
+      function writeString(view, offset, string) {
+        for (let i = 0; i < string.length; i++) {
+          view.setUint8(offset + i, string.charCodeAt(i));
+        }
+      }
+
+      function floatTo16BitPCM(view, offset, input) {
+        for (let i = 0; i < input.length; i++, offset += 2) {
+          let s = Math.max(-1, Math.min(1, input[i]));
+          view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+        }
+      }
+
+      async function sendChunk(blob) {
+        setStatus("thinking");
+        const settings = {
+          model: modelSelect.value,
+          language: languageSelect.value === "auto" ? null : languageSelect.value,
+          beam_size: Number(beamRange.value),
+          chunk_length: Number(chunkRange.value),
+          vad_filter: vadToggle.checked,
+        };
+
+        const form = new FormData();
+        form.append("file", blob, `chunk-${Date.now()}.wav`);
+        form.append("settings", JSON.stringify(settings));
+
+        logLine("[client] Uploading chunk...");
+        const started = performance.now();
+        try {
+          const res = await fetch("/api/whisper/transcribe", { method: "POST", body: form });
+          const data = await res.json();
+          const elapsed = performance.now() - started;
+          logLine(`[server] ${data.logs?.length || 0} lines, ${(elapsed).toFixed(0)} ms round-trip`, true);
+          if (Array.isArray(data.logs)) {
+            data.logs.forEach((line) => logLine(line));
+          }
+          transcript += (transcript ? " " : "") + (data.text || "");
+          renderResults(transcript, data.segments, data.timing);
+          setStatus(isRecording ? "listening" : "thinking");
+        } catch (err) {
+          logLine(`[error] ${err.message || err}`, true);
+          setStatus("idle");
+        }
+      }
+
+      function renderResults(text, segments, timing) {
+        resultsEl.innerHTML = "";
+        const main = document.createElement("p");
+        main.className = "summary-text";
+        main.textContent = text || "(no text yet)";
+        resultsEl.appendChild(main);
+
+        if (Array.isArray(segments) && segments.length) {
+          segments.slice(-5).forEach((seg) => {
+            const p = document.createElement("p");
+            p.textContent = `[${seg.start.toFixed(1)} - ${seg.end.toFixed(1)}] ${seg.text}`;
+            p.style.color = "#a5b4fc";
+            resultsEl.appendChild(p);
+          });
+        }
+
+        if (timing) {
+          metricsEl.innerHTML = "";
+          const rtf = timing.audio_seconds ? (timing.transcribe_ms / 1000) / timing.audio_seconds : 0;
+          addPill(`Audio: ${timing.audio_seconds?.toFixed(2)}s`);
+          addPill(`Transcribe: ${timing.transcribe_ms?.toFixed(0)} ms`);
+          addPill(`Decode: ${timing.decode_ms?.toFixed(0)} ms`);
+          if (timing.resample_ms) addPill(`Resample: ${timing.resample_ms?.toFixed(0)} ms`);
+          addPill(`Total: ${timing.total_ms?.toFixed(0)} ms`);
+          addPill(`RTF: ${rtf.toFixed(2)}x`);
+        }
+      }
+
+      function addPill(text) {
+        const pill = document.createElement("div");
+        pill.className = "pill";
+        pill.textContent = text;
+        metricsEl.appendChild(pill);
+      }
+
+      async function hydrateConfig() {
+        try {
+          const res = await fetch("/api/whisper/config");
+          const data = await res.json();
+          if (data?.defaults) {
+            modelSelect.value = data.defaults.model || "small";
+            languageSelect.value = data.defaults.language || "auto";
+            beamRange.value = data.defaults.beam_size || 1;
+            chunkRange.value = data.defaults.chunk_length || 4;
+            vadToggle.checked = data.defaults.vad_filter !== false;
+            beamValue.textContent = beamRange.value;
+            chunkValue.textContent = chunkRange.value;
+          }
+          if (Array.isArray(data?.models)) {
+            modelSelect.innerHTML = "";
+            data.models.forEach((m) => {
+              const opt = document.createElement("option");
+              opt.value = m;
+              opt.textContent = m;
+              modelSelect.appendChild(opt);
+            });
+            modelSelect.value = data.defaults?.model || "small";
+          }
+        } catch (err) {
+          logLine("[client] Using fallback defaults; config unavailable.");
+        }
+      }
+
+      hydrateConfig();
+      setStatus("idle");
+    </script>
+  </body>
+</html>
