@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     hardware_hint: str = Field("Lenovo T480 (CPU)", alias="HARDWARE_HINT")
     dev_mode: bool = Field(True, description="Expose debug data and unconfigured providers")
     correlation_id_header: str = Field("X-Correlation-ID", description="Header used for correlation IDs")
+    enable_debug_stream: bool = Field(True, alias="ENABLE_DEBUG_STREAM", description="Enable SSE debug stream")
 
     # Feature flags
     use_azure_openai: bool = Field(False, alias="USE_AZURE_OPENAI")

@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from .api import routes_admin, routes_audio, routes_chat, routes_health, routes_runtime, routes_whisper
+from .api.routes_debug import router as routes_debug
 from .common.logging import configure_logging
 from .registry.service_registry import ServiceRegistry
 from .runtime.agent_runtime import AgentRuntime
@@ -16,7 +17,7 @@ from .runtime.router import RuntimeRouter
 from .runtime.stats import StatsTracker
 from .settings import get_settings
 
-configure_logging()
+log_broadcaster = configure_logging()
 settings = get_settings()
 
 app = FastAPI(title=settings.app_name)
@@ -47,6 +48,7 @@ runtime = AgentRuntime(
 app.state.runtime = runtime
 app.state.settings = settings
 app.state.stats_tracker = StatsTracker()
+app.state.log_stream = log_broadcaster
 
 static_whisper_dir = Path(__file__).parent / "static" / "whisper"
 app.mount(
@@ -80,3 +82,4 @@ app.include_router(routes_chat.router)
 app.include_router(routes_audio.router)
 app.include_router(routes_runtime.router)
 app.include_router(routes_whisper.router)
+app.include_router(routes_debug)

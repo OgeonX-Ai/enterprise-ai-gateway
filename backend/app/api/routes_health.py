@@ -21,6 +21,7 @@ async def healthcheck(request: Request) -> dict:
             "name": settings.app_name,
             "version": settings.app_version,
             "commit": settings.build_sha or "",
+            "environment": settings.environment,
         },
         "runtime": {
             "stt_provider": settings.stt_provider,
@@ -34,4 +35,5 @@ async def healthcheck(request: Request) -> dict:
             "started_at": _started_at.isoformat(),
             "seconds": uptime_seconds,
         },
+        "debug": {"stream_enabled": settings.enable_debug_stream},
     }
