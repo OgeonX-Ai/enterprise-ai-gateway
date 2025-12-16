@@ -15,6 +15,12 @@ uvicorn app.main:app --reload
 
 The API will run on `http://localhost:8000`. Pair it with `web/index.html` for the static UI.
 
+### Audio endpoints
+
+- `POST /v1/audio/transcribe` — base64 JSON payloads (existing flows)
+- `POST /v1/audio/transcribe-file` — multipart uploads for Swagger/browser use; accepts optional `settings` JSON string
+- `GET /v1/audio/transcribe-config` — advertised Whisper-like options for the playground
+
 ## Configuration
 
 Set environment variables in `.env` (already referenced by `pydantic-settings`). Feature flags keep mocks as defaults until you opt into real connectors:

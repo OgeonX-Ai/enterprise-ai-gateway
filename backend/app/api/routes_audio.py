@@ -1,5 +1,8 @@
 import base64
-from fastapi import APIRouter, Depends, Request
+import json
+from typing import Any, Dict
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 
 from ..runtime.agent_runtime import AgentRuntime
 
@@ -22,6 +25,75 @@ async def transcribe(
     audio_bytes = base64.b64decode(body.get("audio_base64", "")) if body.get("audio_base64") else b""
     transcript = await runtime.transcribe_audio(provider_id, audio_bytes, locale=locale, model=model)
     return transcript
+
+
+def _parse_transcribe_settings(settings_str: str | None) -> Dict[str, Any]:
+    defaults: Dict[str, Any] = {
+        "provider": "mock-stt",
+        "language": "en-US",
+        "model": "default",
+        "beam_size": 1,
+        "vad_filter": False,
+        "temperature": 0.0,
+    }
+
+    if not settings_str:
+        return defaults
+
+    try:
+        parsed = json.loads(settings_str)
+    except json.JSONDecodeError as exc:  # pragma: no cover - defensive guard
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid settings JSON: {exc}",
+        ) from exc
+
+    if not isinstance(parsed, dict):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Settings must be a JSON object",
+        )
+
+    clean_settings = defaults | {key: parsed[key] for key in parsed if key in defaults}
+    return clean_settings
+
+
+@router.post("/transcribe-file")
+async def transcribe_file(
+    request: Request,
+    file: UploadFile = File(...),
+    settings: str | None = Form(None),
+    runtime: AgentRuntime = Depends(get_runtime),
+) -> Dict[str, Any]:
+    audio_bytes = await file.read()
+    if not audio_bytes:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Empty audio file uploaded",
+        )
+
+    parsed_settings = _parse_transcribe_settings(settings)
+    locale = parsed_settings.get("language") or "en-US"
+    provider_id = parsed_settings.get("provider", "mock-stt")
+    model = parsed_settings.get("model", "default")
+
+    transcript = await runtime.transcribe_audio(provider_id, audio_bytes, locale=locale, model=model)
+    transcript["settings_used"] = parsed_settings
+    transcript["filename"] = file.filename
+    return transcript
+
+
+@router.get("/transcribe-config")
+async def transcribe_config() -> Dict[str, Any]:
+    return {
+        "models": ["tiny", "small", "medium"],
+        "languages": ["fi", "en", "auto"],
+        "beam_size": {"min": 1, "max": 5, "default": 1},
+        "vad_filter": {"supported": True, "default": False},
+        "notes": {
+            "cpu_latency": "Medium model may run slowly on laptops; start with tiny/small for demos.",
+        },
+    }
 
 
 @router.post("/synthesize")

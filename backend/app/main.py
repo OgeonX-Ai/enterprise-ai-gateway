@@ -1,8 +1,11 @@
 import uuid
+from pathlib import Path
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
-from .api import routes_admin, routes_audio, routes_chat, routes_health
+from .api import routes_admin, routes_audio, routes_chat, routes_health, routes_whisper
 from .common.logging import configure_logging
 from .registry.service_registry import ServiceRegistry
 from .runtime.agent_runtime import AgentRuntime
@@ -18,9 +21,13 @@ settings = get_settings()
 app = FastAPI(title=settings.app_name)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://ogeonx-ai.github.io",
+        "http://127.0.0.1:5500",
+        "http://localhost:5500",
+    ],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -38,6 +45,13 @@ runtime = AgentRuntime(
 app.state.runtime = runtime
 app.state.settings = settings
 
+static_whisper_dir = Path(__file__).parent / "static" / "whisper"
+app.mount(
+    "/tools/whisper",
+    StaticFiles(directory=static_whisper_dir, html=True),
+    name="whisper-tools",
+)
+
 
 @app.middleware("http")
 async def ensure_correlation_id(request: Request, call_next):
@@ -54,3 +68,4 @@ app.include_router(routes_health.router)
 app.include_router(routes_admin.router)
 app.include_router(routes_chat.router)
 app.include_router(routes_audio.router)
+app.include_router(routes_whisper.router)
