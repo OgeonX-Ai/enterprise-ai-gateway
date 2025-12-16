@@ -1,10 +1,14 @@
 import asyncio
 import base64
+import io
 from uuid import UUID
 
 import pytest
+from fastapi import FastAPI
 from fastapi.routing import APIRoute
+from starlette.datastructures import UploadFile
 from starlette.requests import Request
+from starlette.testclient import TestClient
 
 from app.api import routes_admin, routes_audio, routes_chat, routes_health
 from app.common.errors import GatewayException
@@ -35,9 +39,15 @@ def _basic_request(app) -> Request:
 
 
 def test_healthcheck(app_instance):
-    response = asyncio.run(routes_health.healthcheck())
-    assert response == {"status": "ok"}
-
+    client = TestClient(app_instance)
+    response = client.get("/healthz")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload.get("status") == "ok"
+    assert payload.get("app", {}).get("name") == "enterprise-ai-gateway"
+    assert payload.get("app", {}).get("version")
+    assert payload.get("runtime", {}).get("stt_provider")
+    assert "uptime" in payload and payload["uptime"].get("seconds") is not None
     methods = _route_methods(app_instance, "/healthz")
     assert "POST" not in methods
 
@@ -96,6 +106,8 @@ def test_chat_rejects_unconfigured_provider(app_instance):
     with pytest.raises(GatewayException):
         asyncio.run(runtime.handle_chat(chat_payload, correlation_id=None))
 
+    methods = _route_methods(app_instance, "/healthz")
+    assert "POST" not in methods
 
 def test_audio_transcribe_and_negative_provider(app_instance):
     runtime = app_instance.state.runtime
@@ -106,6 +118,59 @@ def test_audio_transcribe_and_negative_provider(app_instance):
 
     with pytest.raises(GatewayException):
         asyncio.run(runtime.transcribe_audio("missing", audio_bytes, locale="en-US", model="narrowband"))
+
+
+def test_transcribe_file_defaults(app_instance):
+    runtime = app_instance.state.runtime
+    upload = UploadFile(filename="test.wav", file=io.BytesIO(b"audio-bytes"))
+    transcript = asyncio.run(
+        routes_audio.transcribe_file(
+            _basic_request(app_instance),
+            file=upload,
+            settings=None,
+            runtime=runtime,
+        )
+    )
+
+    assert transcript["settings_used"]["provider"] == "mock-stt"
+    assert transcript["filename"] == "test.wav"
+    assert "timing" in transcript and transcript["timing"]["received_bytes"] == len(b"audio-bytes")
+    assert transcript["timing"].get("audio_seconds") is not None
+
+
+def test_runtime_stats_endpoint(app_instance):
+    client = TestClient(app_instance)
+    response = client.get("/v1/runtime")
+    assert response.status_code == 200
+    data = response.json()
+    assert data.get("backend_ready") is True
+    assert data.get("runtime", {}).get("stt_provider")
+    assert data.get("stats", {}).get("rolling_window_size") == 50
+
+
+def test_transcribe_file_rejects_bad_settings(app_instance):
+    runtime = app_instance.state.runtime
+    upload = UploadFile(filename="test.wav", file=io.BytesIO(b"audio-bytes"))
+
+    with pytest.raises(Exception):
+        asyncio.run(
+            routes_audio.transcribe_file(
+                _basic_request(app_instance),
+                file=upload,
+                settings="not-json",
+                runtime=runtime,
+            )
+        )
+
+
+def test_transcribe_config_route():
+    app = FastAPI()
+    app.include_router(routes_audio.router)
+    client = TestClient(app)
+    response = client.get("/v1/audio/transcribe-config")
+    assert response.status_code == 200
+    data = response.json()
+    assert "models" in data and "languages" in data
 
 
 def test_audio_synthesize_and_negative_provider(app_instance):

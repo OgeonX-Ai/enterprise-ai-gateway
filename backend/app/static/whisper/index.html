@@ -575,7 +575,7 @@
         logLine("[client] Uploading chunk...");
         const started = performance.now();
         try {
-          const res = await fetch("/api/whisper/transcribe", { method: "POST", body: form });
+          const res = await fetch("/v1/audio/transcribe-file", { method: "POST", body: form });
           const data = await res.json();
           const elapsed = performance.now() - started;
           logLine(`[server] ${data.logs?.length || 0} lines, ${(elapsed).toFixed(0)} ms round-trip`, true);
@@ -628,7 +628,7 @@
 
       async function hydrateConfig() {
         try {
-          const res = await fetch("/api/whisper/config");
+          const res = await fetch("/v1/audio/transcribe-config");
           const data = await res.json();
           if (data?.defaults) {
             modelSelect.value = data.defaults.model || "small";

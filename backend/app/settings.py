@@ -6,8 +6,14 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    app_name: str = Field("Enterprise AI Gateway", description="Application name")
+    app_name: str = Field("enterprise-ai-gateway", alias="APP_NAME", description="Application name")
+    app_version: str = Field("0.1.0", alias="APP_VERSION", description="Application version")
+    build_sha: Optional[str] = Field(None, alias="BUILD_COMMIT", description="Build commit SHA")
     environment: str = Field("local", description="Deployment environment name")
+    stt_provider: str = Field("local_whisper", alias="STT_PROVIDER")
+    stt_default_model: str = Field("tiny", alias="STT_DEFAULT_MODEL")
+    stt_default_language: str = Field("fi", alias="STT_DEFAULT_LANGUAGE")
+    hardware_hint: str = Field("Lenovo T480 (CPU)", alias="HARDWARE_HINT")
     dev_mode: bool = Field(True, description="Expose debug data and unconfigured providers")
     correlation_id_header: str = Field("X-Correlation-ID", description="Header used for correlation IDs")
 

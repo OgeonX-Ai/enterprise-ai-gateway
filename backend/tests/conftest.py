@@ -13,10 +13,12 @@ if str(STUBS_DIR) not in sys.path:
 
 from app.main import app
 from app.runtime.memory_store import MemoryStore
+from app.runtime.stats import StatsTracker
 
 
 @pytest.fixture
 def app_instance():
     """Reset runtime memory and return the FastAPI app for tests."""
     app.state.runtime.memory = MemoryStore()
+    app.state.stats_tracker = StatsTracker()
     return app
