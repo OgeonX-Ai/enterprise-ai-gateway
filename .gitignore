@@ -58,6 +58,8 @@ coverage.xml
 
 # FastAPI static files
 static/
+!backend/app/static/
+!backend/app/static/**
 
 # IDEs and editors
 .vscode/

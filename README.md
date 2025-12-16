@@ -29,6 +29,11 @@ Vendor-agnostic enterprise AI gateway that owns a single agent runtime, session 
    ```
 4. Open `web/index.html` in your browser and point it to `http://localhost:8000`.
 
+## Whisper Playground (Local CPU Demo)
+- Start the FastAPI backend as above, then open [`http://127.0.0.1:8000/tools/whisper`](http://127.0.0.1:8000/tools/whisper).
+- Use your browser microphone to record, tweak Whisper settings (model, language, beam size, chunk length, VAD), and watch live logs.
+- The playground runs entirely on CPU using `faster-whisper`; performance depends on your laptop hardware. Audio is processed in-memory and not stored.
+
 ## Tests and validation
 - Run unit + integration tests with coverage: `make test`
 - Lint (ruff) and tests together: `make check`
