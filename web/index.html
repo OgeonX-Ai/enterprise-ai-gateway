@@ -132,6 +132,11 @@
       padding: 0 0.3rem;
       font-weight: 600;
     }
+
+    option.stub {
+      color: #94a3b8;
+      font-style: italic;
+    }
   </style>
 </head>
 <body>
@@ -180,6 +185,21 @@
     </details>
 
     <section class="glass" style="padding: 1.25rem; margin-top: 1rem;">
+      <div class="grid" style="margin-bottom: 1rem;">
+        <div>
+          <label>Account preset
+            <select id="preset">
+              <option value="demo-local">Demo — Local Whisper + Ollama (talks back)</option>
+              <option value="elevenlabs">ElevenLabs — All services (stub until keys set)</option>
+            </select>
+          </label>
+          <small class="muted">Pick a preset to auto-fill providers. ElevenLabs stays visible even without keys so you can plan routing.</small>
+        </div>
+        <div>
+          <p class="hint"><span class="info-icon">i</span><span>Presets keep selections non-empty for demos. Swap the API base to your laptop backend to try real calls.</span></p>
+        </div>
+      </div>
+
       <div class="grid">
         <label>Channel
           <select id="channel">
@@ -311,14 +331,6 @@
       setupEl.innerHTML = text;
     }
 
-    apiBaseInput.value = apiBase;
-
-    function setStatus(text, cssClass = '') {
-      setupEl.classList.remove('status-ok', 'status-warning', 'status-error');
-      if (cssClass) setupEl.classList.add(cssClass);
-      setupEl.innerHTML = text;
-    }
-
     async function loadRegistry() {
       try {
         const res = await fetch(`${apiBase}/v1/registry`);
@@ -337,12 +349,27 @@
           map[id].forEach(item => {
             const opt = document.createElement('option');
             opt.value = item.id;
-            opt.textContent = `${item.display_name} ${item.requires_auth ? '(auth)' : ''}${item.configured ? '' : ' (not configured)'}`;
+            opt.textContent = `${item.display_name} ${item.requires_auth ? '(auth)' : ''}${item.configured ? '' : ' (stub - add key)'}`;
+            if (!item.configured) opt.classList.add('stub');
             select.appendChild(opt);
           });
         });
+        applyPreset(presetEl.value);
       } catch (err) {
-        responseEl.textContent = 'Unable to load registry. Check your API base URL and backend logs.';
+        setStatus('Using demo presets (registry unavailable). Update the API base for live options.', 'status-warning');
+        selects.forEach(id => {
+          const select = document.getElementById(id);
+          select.innerHTML = '';
+          const items = fallbackRegistry[id.replace('-provider','')] || [];
+          items.forEach(item => {
+            const opt = document.createElement('option');
+            opt.value = item.id;
+            opt.textContent = `${item.display_name} ${item.configured ? '' : '(stub - add key)'}`;
+            if (!item.configured) opt.classList.add('stub');
+            select.appendChild(opt);
+          });
+        });
+        applyPreset(presetEl.value);
         debugEl.textContent = err.message;
       }
     }
@@ -409,6 +436,19 @@
       }
     }
 
+    function applyPreset(presetKey) {
+      const preset = presets[presetKey];
+      if (!preset) return;
+      document.getElementById('llm-provider').value = preset.llm_provider;
+      document.getElementById('llm-model').value = preset.llm_model;
+      document.getElementById('rag-provider').value = preset.rag_provider;
+      document.getElementById('rag-index').value = preset.rag_index;
+      document.getElementById('stt-provider').value = preset.stt_provider;
+      document.getElementById('stt-model').value = preset.stt_model;
+      document.getElementById('tts-provider').value = preset.tts_provider;
+      document.getElementById('tts-voice').value = preset.tts_voice;
+    }
+
     document.getElementById('send').addEventListener('click', sendMessage);
     document.getElementById('validate-btn').addEventListener('click', validateConfig);
     document.getElementById('save-api-base').addEventListener('click', () => {
@@ -417,6 +457,10 @@
       setStatus('Saved endpoint. Refreshing registry...', 'status-warning');
       loadRegistry();
       validateConfig();
+    });
+
+    presetEl.addEventListener('change', (event) => {
+      applyPreset(event.target.value);
     });
 
     loadRegistry();

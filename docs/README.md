@@ -16,6 +16,7 @@ This repository ships documentation for the Enterprise AI Gateway covering archi
 - [Security](05-security.md)
 - [Observability](06-observability.md)
 - [Audit](audit.md)
+- [Android integration and backend parity checklist](android-integration-checklist.md)
 
 ## Deployment and cost
 - [Deployment - Azure](07-deployment-azure.md)
