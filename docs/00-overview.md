@@ -19,6 +19,8 @@ The Enterprise AI Gateway is a single backend runtime that exposes a vendor-agno
 - LLM providers: mock, Azure OpenAI stub
 - RAG/Search: mock search, Azure AI Search stub
 - Speech: mock STT/TTS, Azure Speech stub
+
+For Azure hosting, quotas, and throughput guidance across these connectors, see the [Azure Scalability Report](azure/scalability-report.md).
 - Service desk: ServiceNow, Remedy, Jira Service Management stubs
 
 ## Glossary

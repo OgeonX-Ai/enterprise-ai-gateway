@@ -14,9 +14,9 @@ graph LR
   Runtime --> RAG[RAG/Search Connector]
   Runtime --> Speech[STT/TTS Connectors]
   Runtime --> ServiceDesk[Service Desk Connector]
-  LLM -->|stub| AzureOpenAI[Azure OpenAI]
-  RAG -->|stub| AzureSearch[Azure AI Search]
-  Speech -->|stub| AzureSpeech[Azure Speech]
+ LLM -->|stub| AzureOpenAI[Azure OpenAI]
+ RAG -->|stub| AzureSearch[Azure AI Search]
+ Speech -->|stub| AzureSpeech[Azure Speech]
   ServiceDesk -->|stub| SNOW[ServiceNow]
   ServiceDesk --> Remedy
   ServiceDesk --> JiraSM[Jira Service Management]
@@ -32,3 +32,5 @@ graph LR
 - **Memory Store**: gateway-owned session transcripts; swappable for Redis/Cosmos later.
 - **Connectors**: mock and stub adapters for LLM, RAG, STT, TTS, and service desk providers.
 - **Web UI**: static page that calls the API and lets operators select providers per request.
+
+Azure-specific capacity and scaling assumptions for these components live in the [Azure Scalability Report](azure/scalability-report.md).

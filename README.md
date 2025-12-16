@@ -44,6 +44,8 @@ Vendor-agnostic enterprise AI gateway that owns a single agent runtime, session 
 ## Additional docs
 - Architecture overview and sequence diagrams: [`docs/architecture.md`](docs/architecture.md)
 - Endpoint reference with examples: [`docs/api.md`](docs/api.md)
+- Azure scalability guidance: [`docs/azure/scalability-report.md`](docs/azure/scalability-report.md)
+- Android parity + integration checklist: [`docs/android-integration-checklist.md`](docs/android-integration-checklist.md)
 - Contribution standards: [`docs/contributing.md`](docs/contributing.md)
 - Repo audit and current gaps: [`docs/audit.md`](docs/audit.md)
 - UI mockups: [`docs/mockups`](docs/mockups)

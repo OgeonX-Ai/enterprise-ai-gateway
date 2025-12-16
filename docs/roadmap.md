@@ -15,6 +15,8 @@
 4. Use Azure Cache for Redis for session memory.
 5. Add Azure Application Gateway or API Management for ingress, throttling, and observability.
 
+Coordinate these steps with the throughput and quota assumptions in the [Azure Scalability Report](azure/scalability-report.md) so early environments match expected loads.
+
 ## Stretch goals
 
 - WebSocket streaming for LLM and TTS responses.
