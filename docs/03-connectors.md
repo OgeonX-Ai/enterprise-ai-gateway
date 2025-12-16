@@ -15,6 +15,8 @@ Connectors implement clear interfaces so the runtime can swap between mock defau
 - **STT/TTS**: `mock-stt` / `mock-tts` (default), `azure-speech` (Azure Cognitive Services Speech SDK)
 - **ServiceDesk**: `mock-servicedesk` (default), `servicenow` (OAuth client credentials), `jira-sm` (PAT/OAuth), `remedy` (basic auth)
 
+Capacity, quotas, and scale guidance for Azure-aligned connectors are captured in the [Azure Scalability Report](azure/scalability-report.md) so runtime and ops teams can plan concurrency and cost.
+
 ## Adding a new connector
 1. Implement the relevant protocol in `backend/app/connectors/<type>/`.
 2. Register provider metadata (capabilities, supported models/voices, `requires_auth`) in `ServiceRegistry`.
