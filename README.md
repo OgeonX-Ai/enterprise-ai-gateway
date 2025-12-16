@@ -29,6 +29,20 @@ Vendor-agnostic enterprise AI gateway that owns a single agent runtime, session 
    ```
 4. Open `web/index.html` in your browser and point it to `http://localhost:8000`.
 
+## ServiceNow agent tools (mock-first)
+- The ServiceNow tool endpoints are exposed under `/v1/tools/servicenow/*` and are designed for agents (e.g., ElevenLabs Agent) to call.
+- By default the connector runs in **mock mode** with seeded incidents so you can test without credentials.
+- Configure the backend via `backend/.env` (see `backend/.env.example`):
+  - `SERVICENOW_MOCK_MODE=true` (default if credentials are missing)
+  - `SERVICENOW_INSTANCE_URL`, `SERVICENOW_USERNAME`, `SERVICENOW_PASSWORD` for real mode (basic auth).
+  - `CORS_ALLOW_ORIGINS` controls browser access (includes GitHub Pages demo by default).
+- Example calls:
+  - `POST /v1/tools/servicenow/search {"query":"vpn", "limit":3}`
+  - `POST /v1/tools/servicenow/ticket/update {"ticket":{"number":"INC0012345"}, "fields":{"state":"In Progress"}, "reason":"triage"}`
+  - `GET /v1/tools/servicenow/capabilities` (reports mock/real mode, instance, auth).
+- Logs carry `X-Correlation-ID` headers and are streamed to `/v1/debug/stream` when `ENABLE_DEBUG_STREAM=true`.
+- For production, replace local environment variables with a secret provider (e.g., Azure Key Vault placeholder at `backend/app/security/key_provider.py`).
+
 ## Whisper Playground (Local CPU Demo)
 - Start the FastAPI backend as above, then open [`http://127.0.0.1:8000/tools/whisper`](http://127.0.0.1:8000/tools/whisper).
 - Use your browser microphone to record, tweak Whisper settings (model, language, beam size, chunk length, VAD), and watch live logs.

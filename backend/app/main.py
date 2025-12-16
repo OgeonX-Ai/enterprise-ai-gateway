@@ -5,7 +5,15 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from .api import routes_admin, routes_audio, routes_chat, routes_health, routes_runtime, routes_whisper
+from .api import (
+    routes_admin,
+    routes_audio,
+    routes_chat,
+    routes_health,
+    routes_runtime,
+    routes_servicenow_tools,
+    routes_whisper,
+)
 from .api.routes_debug import router as routes_debug
 from .common.logging import configure_logging
 from .registry.service_registry import ServiceRegistry
@@ -24,11 +32,7 @@ app = FastAPI(title=settings.app_name)
 app.add_middleware(
     CORSMiddleware,
     # CORS enabled for local demo UI (GitHub Pages -> localhost)
-    allow_origins=[
-        "https://ogeonx-ai.github.io",
-        "http://127.0.0.1:5500",
-        "http://localhost:5500",
-    ],
+    allow_origins=[origin.strip() for origin in settings.cors_allow_origins.split(",") if origin.strip()],
     allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
@@ -81,5 +85,6 @@ app.include_router(routes_admin.router)
 app.include_router(routes_chat.router)
 app.include_router(routes_audio.router)
 app.include_router(routes_runtime.router)
+app.include_router(routes_servicenow_tools.router)
 app.include_router(routes_whisper.router)
 app.include_router(routes_debug)
