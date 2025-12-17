@@ -43,6 +43,12 @@ Vendor-agnostic enterprise AI gateway that owns a single agent runtime, session 
 - Logs carry `X-Correlation-ID` headers and are streamed to `/v1/debug/stream` when `ENABLE_DEBUG_STREAM=true`.
 - For production, replace local environment variables with a secret provider (e.g., Azure Key Vault placeholder at `backend/app/security/key_provider.py`).
 
+## Speech fallback behavior (ElevenLabs -> local Whisper)
+- `/v1/audio/transcribe-file` accepts `provider=auto|elevenlabs|local_whisper` plus optional `model`, `language`, `beam_size`, and `vad` query params.
+- When `provider=auto`, ElevenLabs is used if configured and healthy; auth/credit/429 errors mark it unavailable for 10 minutes and the router falls back to local Whisper.
+- `GET /v1/runtime/status` reports `stt_provider_active`, whether ElevenLabs is OK, the current mode (`primary` vs `fallback`), and the ServiceNow mode (`mock`/`real`).
+- Live backend logs (including STT/tool calls) stream from `/v1/debug/stream` when `ENABLE_DEBUG_STREAM=true`.
+
 ## Whisper Playground (Local CPU Demo)
 - Start the FastAPI backend as above, then open [`http://127.0.0.1:8000/tools/whisper`](http://127.0.0.1:8000/tools/whisper).
 - Use your browser microphone to record, tweak Whisper settings (model, language, beam size, chunk length, VAD), and watch live logs.

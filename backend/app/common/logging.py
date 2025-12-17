@@ -1,12 +1,11 @@
 from __future__ import annotations
 
+import datetime
+import json
 import logging
 import threading
 from collections import deque
-from typing import Deque, Optional, Set
-
-
-LOG_FORMAT = "%(asctime)s %(levelname)s [%(name)s] [correlation_id=%(correlation_id)s] %(message)s"
+from typing import Deque, Dict, Optional, Set
 
 
 class CorrelationIdFilter(logging.Filter):
@@ -16,6 +15,41 @@ class CorrelationIdFilter(logging.Filter):
         if not hasattr(record, "correlation_id"):
             record.correlation_id = "-"
         return True
+
+
+class JsonLogFormatter(logging.Formatter):
+    """Render log records as JSON lines with a consistent schema."""
+
+    default_event = "log"
+
+    def format(self, record: logging.LogRecord) -> str:  # pragma: no cover - formatting logic
+        ts = datetime.datetime.utcnow().isoformat(timespec="milliseconds") + "Z"
+        message = record.getMessage()
+        base: Dict[str, object] = {
+            "ts": ts,
+            "level": record.levelname.upper(),
+            "event": getattr(record, "event", self.default_event),
+            "message": message,
+            "logger": record.name,
+            "correlation_id": getattr(record, "correlation_id", "-"),
+        }
+
+        # Capture non-standard attributes to preserve structured context
+        standard_attrs = set(logging.LogRecord(None, None, "", 0, "", (), None).__dict__.keys())
+        for key, value in record.__dict__.items():
+            if key in standard_attrs or key in base:
+                continue
+            base[key] = value
+
+        if record.exc_info:
+            base["error_type"] = record.exc_info[0].__name__ if record.exc_info[0] else "Exception"
+            base["error_message"] = str(record.exc_info[1])
+            base["stack"] = self.formatException(record.exc_info)
+
+        if record.stack_info:
+            base["stack_info"] = record.stack_info
+
+        return json.dumps(base, default=str)
 
 
 class LogStreamBroadcaster:
@@ -74,7 +108,8 @@ class BroadcastLogHandler(logging.Handler):
 def configure_logging(level: int = logging.INFO) -> LogStreamBroadcaster:
     broadcaster = LogStreamBroadcaster()
     handler = BroadcastLogHandler(broadcaster)
-    handler.setFormatter(logging.Formatter(LOG_FORMAT))
+    json_formatter = JsonLogFormatter()
+    handler.setFormatter(json_formatter)
 
     root_logger = logging.getLogger()
     root_logger.setLevel(level)
@@ -84,7 +119,7 @@ def configure_logging(level: int = logging.INFO) -> LogStreamBroadcaster:
 
     # Ensure standard output still receives logs
     stream_handler = logging.StreamHandler()
-    stream_handler.setFormatter(logging.Formatter(LOG_FORMAT))
+    stream_handler.setFormatter(json_formatter)
     stream_handler.addFilter(CorrelationIdFilter())
     root_logger.addHandler(stream_handler)
 
@@ -100,3 +135,17 @@ def get_logger(name: str) -> logging.LoggerAdapter:
 def bind_correlation_id(logger: logging.LoggerAdapter, correlation_id: Optional[str]) -> logging.LoggerAdapter:
     logger.extra["correlation_id"] = correlation_id or "-"
     return logger
+
+
+def log_event(
+    logger: logging.LoggerAdapter,
+    level: int,
+    event: str,
+    message: str,
+    *,
+    exc_info=None,
+    **fields,
+) -> None:
+    """Convenience helper to emit structured events consistently."""
+
+    logger.log(level, message, extra={"event": event, **fields}, exc_info=exc_info)

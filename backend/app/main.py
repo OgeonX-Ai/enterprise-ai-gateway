@@ -23,6 +23,7 @@ from .runtime.memory_store import MemoryStore
 from .runtime.policy import PolicyEngine
 from .runtime.router import RuntimeRouter
 from .runtime.stats import StatsTracker
+from .speech import SpeechRouter
 from .settings import get_settings
 
 log_broadcaster = configure_logging()
@@ -53,6 +54,7 @@ app.state.runtime = runtime
 app.state.settings = settings
 app.state.stats_tracker = StatsTracker()
 app.state.log_stream = log_broadcaster
+app.state.speech_router = SpeechRouter(settings)
 
 static_whisper_dir = Path(__file__).parent / "static" / "whisper"
 app.mount(

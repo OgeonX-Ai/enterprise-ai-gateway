@@ -1,9 +1,10 @@
+import logging
 import time
 from typing import Any, Dict, Optional
 
 from fastapi import HTTPException
 
-from ...common.logging import get_logger
+from ...common.logging import get_logger, log_event
 from .client import ServiceNowClient
 from .config import ServiceNowConfig
 from .mock_store import MockIncidentStore
@@ -48,15 +49,38 @@ class ServiceNowService:
         start = time.time()
         if self.config.mock_mode:
             results = self.mock_store.search(payload.query, payload.limit)
-            self.logger.info("servicenow.search (mock)", extra={"query": payload.query, "correlation_id": correlation_id})
+            log_event(
+                self.logger,
+                logging.INFO,
+                "servicenow.search",
+                "ServiceNow search (mock)",
+                query=payload.query,
+                correlation_id=correlation_id,
+                mode="mock",
+            )
             return StandardToolResponse(ok=True, data=results, meta=self._meta(start, correlation_id))
 
         try:
-            self.logger.info("servicenow.search", extra={"query": payload.query, "correlation_id": correlation_id})
+            log_event(
+                self.logger,
+                logging.INFO,
+                "servicenow.search",
+                "ServiceNow search",
+                query=payload.query,
+                correlation_id=correlation_id,
+                mode="real",
+            )
             response = await self.client.search_incidents(payload.query, payload.limit)
             return StandardToolResponse(ok=True, data=response, meta=self._meta(start, correlation_id))
         except Exception as exc:  # noqa: BLE001
-            self.logger.exception("servicenow.search failed", extra={"correlation_id": correlation_id})
+            log_event(
+                self.logger,
+                logging.ERROR,
+                "servicenow.search.failed",
+                "ServiceNow search failed",
+                correlation_id=correlation_id,
+                exc_info=exc,
+            )
             return StandardToolResponse(ok=False, error=str(exc), meta=self._meta(start, correlation_id))
 
     async def get_ticket(self, ticket: TicketRef, correlation_id: str) -> StandardToolResponse:
@@ -74,7 +98,14 @@ class ServiceNowService:
             response = await self.client.get_incident(sys_id)
             return StandardToolResponse(ok=True, data=response, meta=self._meta(start, correlation_id))
         except Exception as exc:  # noqa: BLE001
-            self.logger.exception("servicenow.get_ticket failed", extra={"correlation_id": correlation_id})
+            log_event(
+                self.logger,
+                logging.ERROR,
+                "servicenow.get_ticket.failed",
+                "ServiceNow get ticket failed",
+                correlation_id=correlation_id,
+                exc_info=exc,
+            )
             return StandardToolResponse(ok=False, error=str(exc), meta=self._meta(start, correlation_id))
 
     async def update_ticket(self, payload: UpdateTicketRequest, correlation_id: str) -> StandardToolResponse:
@@ -92,7 +123,14 @@ class ServiceNowService:
             response = await self.client.update_incident(sys_id, payload.fields)
             return StandardToolResponse(ok=True, data=response, meta=self._meta(start, correlation_id))
         except Exception as exc:  # noqa: BLE001
-            self.logger.exception("servicenow.update_ticket failed", extra={"correlation_id": correlation_id})
+            log_event(
+                self.logger,
+                logging.ERROR,
+                "servicenow.update_ticket.failed",
+                "ServiceNow update ticket failed",
+                correlation_id=correlation_id,
+                exc_info=exc,
+            )
             return StandardToolResponse(ok=False, error=str(exc), meta=self._meta(start, correlation_id))
 
     async def add_work_note(self, payload: AddWorkNoteRequest, correlation_id: str) -> StandardToolResponse:
@@ -112,7 +150,14 @@ class ServiceNowService:
             response = await self.client.add_work_note(sys_id, payload.note, payload.visibility)
             return StandardToolResponse(ok=True, data=response, meta=self._meta(start, correlation_id))
         except Exception as exc:  # noqa: BLE001
-            self.logger.exception("servicenow.add_work_note failed", extra={"correlation_id": correlation_id})
+            log_event(
+                self.logger,
+                logging.ERROR,
+                "servicenow.add_work_note.failed",
+                "ServiceNow add work note failed",
+                correlation_id=correlation_id,
+                exc_info=exc,
+            )
             return StandardToolResponse(ok=False, error=str(exc), meta=self._meta(start, correlation_id))
 
     async def notify_resolver(self, payload: NotifyResolverRequest, correlation_id: str) -> StandardToolResponse:
@@ -122,9 +167,14 @@ class ServiceNowService:
             data = self.mock_store.notify_resolver(
                 payload.ticket.model_dump(), payload.message, payload.channel, payload.urgency
             )
-            self.logger.info(
-                "servicenow.notify_resolver (mock)",
-                extra={"ticket": payload.ticket.model_dump(), "correlation_id": correlation_id},
+            log_event(
+                self.logger,
+                logging.INFO,
+                "servicenow.notify_resolver",
+                "ServiceNow notify resolver (mock)",
+                ticket=payload.ticket.model_dump(),
+                correlation_id=correlation_id,
+                mode="mock",
             )
             return StandardToolResponse(ok=True, data=data, meta=self._meta(start, correlation_id))
         try:
@@ -133,19 +183,27 @@ class ServiceNowService:
             response = await self.client.update_incident(sys_id, fields)
             return StandardToolResponse(ok=True, data=response, meta=self._meta(start, correlation_id))
         except Exception as exc:  # noqa: BLE001
-            self.logger.exception("servicenow.notify_resolver failed", extra={"correlation_id": correlation_id})
+            log_event(
+                self.logger,
+                logging.ERROR,
+                "servicenow.notify_resolver.failed",
+                "ServiceNow notify resolver failed",
+                correlation_id=correlation_id,
+                exc_info=exc,
+            )
             return StandardToolResponse(ok=False, error=str(exc), meta=self._meta(start, correlation_id))
 
     async def schedule_followup(self, payload: ScheduleFollowupRequest, correlation_id: str) -> StandardToolResponse:
         start = time.time()
         self._ensure_ticket(payload.ticket)
-        self.logger.info(
-            "servicenow.schedule_followup stub",
-            extra={
-                "ticket": payload.ticket.model_dump(),
-                "with": payload.with_party,
-                "correlation_id": correlation_id,
-            },
+        log_event(
+            self.logger,
+            logging.INFO,
+            "servicenow.schedule_followup",
+            "ServiceNow schedule_followup stub",
+            ticket=payload.ticket.model_dump(),
+            with_party=payload.with_party,
+            correlation_id=correlation_id,
         )
         return StandardToolResponse(
             ok=True,
