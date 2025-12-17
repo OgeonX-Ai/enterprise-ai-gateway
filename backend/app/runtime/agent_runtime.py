@@ -1,8 +1,9 @@
+import logging
 import uuid
 from typing import Any, Dict, Optional
 
 from ..common.errors import GatewayException
-from ..common.logging import bind_correlation_id, get_logger
+from ..common.logging import bind_correlation_id, get_logger, log_event
 from ..models import (
     ChatMessage,
     ChatRequest,
@@ -183,13 +184,14 @@ class AgentRuntime:
                 "llm_usage": llm_result.get("usage", {}),
                 "latency_ms": llm_result.get("latency_ms"),
             }
-            logger.info(
+            log_event(
+                logger,
+                logging.INFO,
+                "runtime.chat.completed",
                 "Runtime executed",
-                extra={
-                    "providers": request.provider_selection.model_dump(),
-                    "used_rag": bool(rag_results),
-                    "servicedesk_action": servicedesk_action,
-                },
+                providers=request.provider_selection.model_dump(),
+                used_rag=bool(rag_results),
+                servicedesk_action=servicedesk_action,
             )
 
         return ChatResponse(

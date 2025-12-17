@@ -29,6 +29,26 @@ Vendor-agnostic enterprise AI gateway that owns a single agent runtime, session 
    ```
 4. Open `web/index.html` in your browser and point it to `http://localhost:8000`.
 
+## ServiceNow agent tools (mock-first)
+- The ServiceNow tool endpoints are exposed under `/v1/tools/servicenow/*` and are designed for agents (e.g., ElevenLabs Agent) to call.
+- By default the connector runs in **mock mode** with seeded incidents so you can test without credentials.
+- Configure the backend via `backend/.env` (see `backend/.env.example`):
+  - `SERVICENOW_MOCK_MODE=true` (default if credentials are missing)
+  - `SERVICENOW_INSTANCE_URL`, `SERVICENOW_USERNAME`, `SERVICENOW_PASSWORD` for real mode (basic auth).
+  - `CORS_ALLOW_ORIGINS` controls browser access (includes GitHub Pages demo by default).
+- Example calls:
+  - `POST /v1/tools/servicenow/search {"query":"vpn", "limit":3}`
+  - `POST /v1/tools/servicenow/ticket/update {"ticket":{"number":"INC0012345"}, "fields":{"state":"In Progress"}, "reason":"triage"}`
+  - `GET /v1/tools/servicenow/capabilities` (reports mock/real mode, instance, auth).
+- Logs carry `X-Correlation-ID` headers and are streamed to `/v1/debug/stream` when `ENABLE_DEBUG_STREAM=true`.
+- For production, replace local environment variables with a secret provider (e.g., Azure Key Vault placeholder at `backend/app/security/key_provider.py`).
+
+## Speech fallback behavior (ElevenLabs -> local Whisper)
+- `/v1/audio/transcribe-file` accepts `provider=auto|elevenlabs|local_whisper` plus optional `model`, `language`, `beam_size`, and `vad` query params.
+- When `provider=auto`, ElevenLabs is used if configured and healthy; auth/credit/429 errors mark it unavailable for 10 minutes and the router falls back to local Whisper.
+- `GET /v1/runtime/status` reports `stt_provider_active`, whether ElevenLabs is OK, the current mode (`primary` vs `fallback`), and the ServiceNow mode (`mock`/`real`).
+- Live backend logs (including STT/tool calls) stream from `/v1/debug/stream` when `ENABLE_DEBUG_STREAM=true`.
+
 ## Whisper Playground (Local CPU Demo)
 - Start the FastAPI backend as above, then open [`http://127.0.0.1:8000/tools/whisper`](http://127.0.0.1:8000/tools/whisper).
 - Use your browser microphone to record, tweak Whisper settings (model, language, beam size, chunk length, VAD), and watch live logs.

@@ -1,8 +1,11 @@
+from datetime import datetime, timezone
 from typing import Any, Dict
 
 from fastapi import APIRouter, Request
 
+from ..integrations.servicenow.config import ServiceNowConfig
 from ..runtime.stats import StatsTracker
+from ..speech import SpeechRouter
 from ..settings import Settings
 
 router = APIRouter()
@@ -43,4 +46,26 @@ async def runtime(request: Request) -> Dict[str, Any]:
             "p95_latency_ms": p95,
             "last_error": snapshot.last_error,
         },
+    }
+
+
+@router.get("/v1/runtime/status")
+async def runtime_status(request: Request) -> Dict[str, Any]:
+    settings: Settings = request.app.state.settings
+    stats: StatsTracker = request.app.state.stats_tracker
+    speech_router: SpeechRouter = request.app.state.speech_router
+
+    speech_status = speech_router.status()
+    sn_mode = ServiceNowConfig.from_settings(settings).mode_label
+    stats_snapshot = stats.snapshot()
+
+    return {
+        "backend_ok": True,
+        "servicenow_mode": sn_mode,
+        "stt_provider_active": speech_status.stt_provider_active,
+        "stt_provider_mode": speech_status.mode,
+        "stt_provider_used": speech_status.stt_provider_active,
+        "elevenlabs_ok": speech_status.elevenlabs_ok,
+        "last_error": speech_status.last_error or stats_snapshot.last_error,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
