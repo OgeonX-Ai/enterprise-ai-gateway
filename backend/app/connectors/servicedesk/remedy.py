@@ -16,7 +16,14 @@ class RemedyConnector(ServiceDeskConnector):
 
     async def create_ticket(self, title: str, body: str, severity: str, requester: str | None = None) -> Dict[str, Any]:
         url = f"{self.base_url}/api/arsys/v1/entry/HPD:IncidentInterface_Create"
-        payload = {"values": {"Description": body, "Reported Source": "AI Gateway", "Impact": severity, "Summary": title}}
+        payload = {
+            "values": {
+                "Description": body,
+                "Reported Source": "AI Gateway",
+                "Impact": severity,
+                "Summary": title,
+            }
+        }
         async with await self._client() as client:
             resp = await client.post(url, json=payload)
             resp.raise_for_status()

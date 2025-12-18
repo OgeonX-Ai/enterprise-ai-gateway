@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import datetime
 import json
 import logging
@@ -58,12 +59,10 @@ class LogStreamBroadcaster:
     def __init__(self, maxlen: int = 200, replay: int = 50) -> None:
         self.buffer: Deque[str] = deque(maxlen=maxlen)
         self.replay = replay
-        self.listeners: Set["asyncio.Queue[str]"] = set()
+        self.listeners: Set[asyncio.Queue[str]] = set()
         self._lock = threading.Lock()
 
-    async def subscribe(self) -> "asyncio.Queue[str]":
-        import asyncio
-
+    async def subscribe(self) -> asyncio.Queue[str]:
         queue: asyncio.Queue[str] = asyncio.Queue()
         with self._lock:
             # Seed with recent history so new listeners see immediate output
@@ -72,7 +71,7 @@ class LogStreamBroadcaster:
             self.listeners.add(queue)
         return queue
 
-    def unsubscribe(self, queue: "asyncio.Queue[str]") -> None:
+    def unsubscribe(self, queue: asyncio.Queue[str]) -> None:
         with self._lock:
             self.listeners.discard(queue)
 

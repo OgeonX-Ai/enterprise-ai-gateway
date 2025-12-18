@@ -4,15 +4,14 @@ import io
 from uuid import UUID
 
 import pytest
+from app.api import routes_admin, routes_audio, routes_chat
+from app.common.errors import GatewayException
+from app.models import ChatRequest, ProviderSelection
 from fastapi import FastAPI
 from fastapi.routing import APIRoute
 from starlette.datastructures import UploadFile
 from starlette.requests import Request
 from starlette.testclient import TestClient
-
-from app.api import routes_admin, routes_audio, routes_chat, routes_health
-from app.common.errors import GatewayException
-from app.models import ChatRequest, ProviderSelection
 
 
 def _route_methods(app, path: str) -> set[str]:

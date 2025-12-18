@@ -5,8 +5,8 @@ from fastapi import APIRouter, Request
 
 from ..integrations.servicenow.config import ServiceNowConfig
 from ..runtime.stats import StatsTracker
-from ..speech import SpeechRouter
 from ..settings import Settings
+from ..speech import SpeechRouter
 
 router = APIRouter()
 

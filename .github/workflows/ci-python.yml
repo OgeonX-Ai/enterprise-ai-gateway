@@ -1,0 +1,102 @@
+name: CI - Python Backend (System Python)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint-test:
+    runs-on: [self-hosted, windows]
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify system Python
+        run: |
+          $pythonCmd = Get-Command python -ErrorAction SilentlyContinue
+          if (-not $pythonCmd) {
+            Write-Error "Python not found on runner. Install Python 3.11+ and ensure it's in PATH."
+            exit 1
+          }
+          python --version
+          python -m pip --version
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if (Test-Path "backend/requirements.txt") {
+            Write-Host "Installing backend requirements..."
+            python -m pip install -r backend/requirements.txt
+          } elseif (Test-Path "requirements.txt") {
+            Write-Host "Installing root requirements..."
+            python -m pip install -r requirements.txt
+          } else {
+            Write-Host "No requirements.txt found. Skipping app deps."
+          }
+          python -m pip install ruff pytest
+
+      - name: Ruff lint
+        run: |
+          if (Test-Path "backend") {
+            python -m ruff check backend
+          } else {
+            python -m ruff check .
+          }
+
+      - name: Run tests (pytest)
+        run: |
+          $patterns = @("test_*.py", "*_test.py")
+          $testFiles = @()
+          if (Test-Path "backend") {
+            $testFiles += Get-ChildItem -Path backend -Recurse -Include $patterns -File
+          }
+          $testFiles += Get-ChildItem -Path . -Recurse -Include $patterns -File
+
+          if (-not $testFiles) {
+            Write-Host "No tests found. Skipping pytest."
+            exit 0
+          }
+
+          if (Test-Path "backend") {
+            python -m pytest -q backend
+          } else {
+            python -m pytest -q
+          }
+
+      - name: Create triage summary (on failure)
+        if: failure()
+        run: |
+          New-Item -ItemType Directory -Path "_triage" -Force | Out-Null
+          $summaryPath = "_triage/summary.txt"
+          $runUrl = "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          $branch = if ($env:GITHUB_HEAD_REF) { $env:GITHUB_HEAD_REF } else { $env:GITHUB_REF }
+          @(
+            "Repo: $env:GITHUB_REPOSITORY",
+            "Run URL: $runUrl",
+            "SHA: $env:GITHUB_SHA",
+            "Branch: $branch",
+            "Workflow: ${{ github.workflow }}",
+            "Job: ${{ github.job }}",
+            "Runner: $env:RUNNER_NAME",
+            "Runner OS: $env:RUNNER_OS"
+          ) | Out-File -FilePath $summaryPath -Encoding utf8
+
+          try { python --version | Out-File -FilePath $summaryPath -Encoding utf8 -Append } catch {}
+          try { python -m pip --version | Out-File -FilePath $summaryPath -Encoding utf8 -Append } catch {}
+          try { python -m ruff --version | Out-File -FilePath $summaryPath -Encoding utf8 -Append } catch {}
+          try { python -m pytest --version | Out-File -FilePath $summaryPath -Encoding utf8 -Append } catch {}
+          try { docker version | Out-File -FilePath $summaryPath -Encoding utf8 -Append } catch {}
+          try { minikube status | Out-File -FilePath $summaryPath -Encoding utf8 -Append } catch {}
+          try { kubectl version --client | Out-File -FilePath $summaryPath -Encoding utf8 -Append } catch {}
+          "If logs are needed, open the run URL above." | Out-File -FilePath $summaryPath -Encoding utf8 -Append
+
+      - name: Upload triage artifact
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: triage
+          path: _triage/summary.txt
