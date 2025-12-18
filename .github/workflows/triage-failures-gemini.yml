@@ -172,7 +172,7 @@ jobs:
               }
             ]
           }
-          EOF
+          EOF2
 
           RESPONSE_CODE=0
           curl -s -X POST \
