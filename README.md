@@ -29,6 +29,19 @@ Vendor-agnostic enterprise AI gateway that owns a single agent runtime, session 
    ```
 4. Open `web/index.html` in your browser and point it to `http://localhost:8000`.
 
+## Pipelines
+- Runner smoke check (self-hosted Windows): [.github/workflows/runner-smoke.yml](.github/workflows/runner-smoke.yml)
+- Python CI on the Windows runner (uses system Python): [.github/workflows/ci-python.yml](.github/workflows/ci-python.yml)
+- Optional Minikube CD on the same runner: [.github/workflows/cd-minikube.yml](.github/workflows/cd-minikube.yml)
+- Overview and usage: [`docs/pipelines.md`](docs/pipelines.md)
+
+All workflows target the self-hosted Windows runner; optional Docker/Minikube tooling is detected gracefully so missing local dependencies will skip CD without failing CI. The CI workflow expects Python 3.11+ to be installed and available on `PATH` on the runner.
+
+## Automated Failure Triage
+- Failed workflow runs upload a small triage artifact and trigger [`Automated Failure Triage (Gemini)`](.github/workflows/triage-failures-gemini.yml).
+- The triage workflow opens a GitHub Issue with redacted notes, Gemini analysis, and a Codex-ready fix prompt.
+- Setup and usage details: [`docs/triage-automation.md`](docs/triage-automation.md)
+
 ## ServiceNow agent tools (mock-first)
 - The ServiceNow tool endpoints are exposed under `/v1/tools/servicenow/*` and are designed for agents (e.g., ElevenLabs Agent) to call.
 - By default the connector runs in **mock mode** with seeded incidents so you can test without credentials.
