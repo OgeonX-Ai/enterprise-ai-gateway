@@ -4,7 +4,7 @@ This repository includes a small set of GitHub Actions pipelines designed to run
 
 ## Workflows
 
-### Runner Smoke (Windows)
+### Runner Smoke Test
 - **File:** [.github/workflows/runner-smoke.yml](../.github/workflows/runner-smoke.yml)
 - **Purpose:** Quickly verify the Windows runner is healthy and that key tools (Docker, kubectl) are reachable.
 - **Triggers:** `workflow_dispatch` or `push` when the workflow file changes.
@@ -32,8 +32,8 @@ This repository includes a small set of GitHub Actions pipelines designed to run
 
 ## Running the workflows
 
-- **Smoke test:** Trigger the workflow manually in GitHub Actions (`Runner Smoke (Windows)`) or push a change to `.github/workflows/runner-smoke.yml`.
-- **CI:** Open a pull request or push to `main`; the `CI - Python (Windows)` workflow will run automatically.
+- **Smoke test:** Trigger the workflow manually in GitHub Actions (`Runner Smoke Test`) or push a change to `.github/workflows/runner-smoke.yml`.
+- **CI:** Open a pull request or push to `main`; the `CI - Python Backend (System Python)` workflow will run automatically.
 - **CD to Minikube:** Run `workflow_dispatch` for `CD - Minikube (Windows)` or push relevant changes on `main`. Ensure the runner has working Docker, Minikube (with Docker driver), and kubectl.
 
 ## Prerequisites for Minikube CD

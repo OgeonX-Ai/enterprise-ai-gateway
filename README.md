@@ -30,7 +30,7 @@ Vendor-agnostic enterprise AI gateway that owns a single agent runtime, session 
 4. Open `web/index.html` in your browser and point it to `http://localhost:8000`.
 
 ## Pipelines
-- Runner smoke check (self-hosted Windows): [.github/workflows/runner-smoke.yml](.github/workflows/runner-smoke.yml)
+- Runner Smoke Test (self-hosted Windows): [.github/workflows/runner-smoke.yml](.github/workflows/runner-smoke.yml)
 - Python CI on the Windows runner (uses system Python): [.github/workflows/ci-python.yml](.github/workflows/ci-python.yml)
 - Optional Minikube CD on the same runner: [.github/workflows/cd-minikube.yml](.github/workflows/cd-minikube.yml)
 - Overview and usage: [`docs/pipelines.md`](docs/pipelines.md)

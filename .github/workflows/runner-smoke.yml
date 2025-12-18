@@ -1,4 +1,4 @@
-name: Runner Smoke (Windows)
+name: Runner Smoke Test
 
 on:
   workflow_dispatch:

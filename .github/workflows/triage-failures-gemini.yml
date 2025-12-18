@@ -3,7 +3,7 @@ name: Automated Failure Triage (Gemini)
 on:
   workflow_run:
     workflows:
-      - Runner Smoke (Windows)
+      - Runner Smoke Test
       - CI - Python Backend (System Python)
       - CD - Minikube (Windows)
     types:
