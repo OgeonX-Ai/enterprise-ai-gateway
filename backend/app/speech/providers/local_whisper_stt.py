@@ -4,13 +4,16 @@ import asyncio
 import logging
 import tempfile
 from pathlib import Path
-from typing import Any, Dict, Optional
-
-from faster_whisper import WhisperModel
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from ...common.logging import get_logger, log_event
 from ...settings import Settings
-from .base import SpeechProvider, Stopwatch, TranscriptionOptions, TranscriptionResult
+from .base import SpeechProvider, SpeechProviderError, Stopwatch, TranscriptionOptions, TranscriptionResult
+
+if TYPE_CHECKING:  # pragma: no cover - hints only
+    from faster_whisper import WhisperModel
+else:  # pragma: no cover - runtime fallback when dependency is absent
+    WhisperModel = object
 
 
 class LocalWhisperProvider(SpeechProvider):
@@ -26,6 +29,14 @@ class LocalWhisperProvider(SpeechProvider):
     def _load_model(self, model_name: str) -> WhisperModel:
         if self._model and self._model_name == model_name:
             return self._model
+        try:
+            from faster_whisper import WhisperModel as WhisperModelType
+        except ModuleNotFoundError as exc:  # pragma: no cover - dependency missing on some runners
+            raise SpeechProviderError(
+                "dependency_missing",
+                "faster-whisper is not installed; install it to use local transcription.",
+                hint="Use Python 3.11 or 3.12 with faster-whisper wheels available.",
+            ) from exc
         log_event(
             self.logger,
             logging.INFO,
@@ -34,7 +45,7 @@ class LocalWhisperProvider(SpeechProvider):
             model=model_name,
             compute_type=self._compute_type,
         )
-        self._model = WhisperModel(model_name, compute_type=self._compute_type)
+        self._model = WhisperModelType(model_name, compute_type=self._compute_type)
         self._model_name = model_name
         return self._model
 
