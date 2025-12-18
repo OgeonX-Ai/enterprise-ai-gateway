@@ -211,6 +211,7 @@ jobs:
         with:
           script: |
             const fs = require('fs');
+            const core = require('@actions/core');
             const {owner, repo} = context.repo;
             const workflowName = `${{ toJson(steps.fetch.outputs.workflow_name) }}`.replace(/^"|"$/g, '') || 'Unknown workflow';
             const runNumber = `${{ steps.fetch.outputs.run_number }}` || 'unknown';
