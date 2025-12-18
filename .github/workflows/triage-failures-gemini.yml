@@ -188,24 +188,24 @@ jobs:
           fi
 
           python - <<'PY'
-import json
-from pathlib import Path
+            import json
+            from pathlib import Path
 
-resp_path = Path('response.json')
-text = "Gemini unavailable; see triage_redacted.txt"
-if resp_path.exists():
-    try:
-        data = json.loads(resp_path.read_text())
-        candidates = data.get('candidates') or []
-        if candidates:
-            parts = candidates[0].get('content', {}).get('parts') or []
-            if parts and parts[0].get('text'):
-                text = parts[0]['text']
-    except Exception:
-        text = "Gemini response parsing failed; see triage_redacted.txt"
+            resp_path = Path('response.json')
+            text = "Gemini unavailable; see triage_redacted.txt"
+            if resp_path.exists():
+                try:
+                    data = json.loads(resp_path.read_text())
+                    candidates = data.get('candidates') or []
+                    if candidates:
+                        parts = candidates[0].get('content', {}).get('parts') or []
+                        if parts and parts[0].get('text'):
+                            text = parts[0]['text']
+                except Exception:
+                    text = "Gemini response parsing failed; see triage_redacted.txt"
 
-Path('gemini_output.txt').write_text(text)
-PY
+            Path('gemini_output.txt').write_text(text)
+          PY
 
       - name: Create GitHub Issue (deduped)
         uses: actions/github-script@v7
