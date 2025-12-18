@@ -15,7 +15,7 @@ This repository includes a small set of GitHub Actions pipelines designed to run
 - **Purpose:** Lint and test the Python backend whether it lives in the repo root or under `backend/`.
 - **Triggers:** `push` to `main` and any `pull_request`.
 - **What it does:**
-  - Checks out code and installs Python 3.11.
+  - Checks out code and uses the system Python already installed on the Windows runner (install Python 3.11+ and ensure it is on `PATH`). No `actions/setup-python` step is required.
   - Installs dependencies from `backend/requirements.txt` if present, else `requirements.txt`, then always installs Ruff and Pytest.
   - Runs Ruff against `backend/` if it exists, otherwise the repository root.
   - Runs Pytest against `backend/` if it exists, otherwise the repository root. If no tests matching `test_*.py` or `*_test.py` are found, the job logs a friendly skip message and succeeds.

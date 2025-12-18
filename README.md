@@ -31,11 +31,11 @@ Vendor-agnostic enterprise AI gateway that owns a single agent runtime, session 
 
 ## Pipelines
 - Runner smoke check (self-hosted Windows): [.github/workflows/runner-smoke.yml](.github/workflows/runner-smoke.yml)
-- Python CI on the Windows runner: [.github/workflows/ci-python.yml](.github/workflows/ci-python.yml)
+- Python CI on the Windows runner (uses system Python): [.github/workflows/ci-python.yml](.github/workflows/ci-python.yml)
 - Optional Minikube CD on the same runner: [.github/workflows/cd-minikube.yml](.github/workflows/cd-minikube.yml)
 - Overview and usage: [`docs/pipelines.md`](docs/pipelines.md)
 
-All workflows target the self-hosted Windows runner; optional Docker/Minikube tooling is detected gracefully so missing local dependencies will skip CD without failing CI.
+All workflows target the self-hosted Windows runner; optional Docker/Minikube tooling is detected gracefully so missing local dependencies will skip CD without failing CI. The CI workflow expects Python 3.11+ to be installed and available on `PATH` on the runner.
 
 ## ServiceNow agent tools (mock-first)
 - The ServiceNow tool endpoints are exposed under `/v1/tools/servicenow/*` and are designed for agents (e.g., ElevenLabs Agent) to call.

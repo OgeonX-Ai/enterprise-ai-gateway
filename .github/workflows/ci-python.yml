@@ -1,4 +1,4 @@
-name: CI - Python (Windows)
+name: CI - Python Backend (System Python)
 
 on:
   push:
@@ -15,25 +15,29 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
+      - name: Verify system Python
+        run: |
+          $pythonCmd = Get-Command python -ErrorAction SilentlyContinue
+          if (-not $pythonCmd) {
+            Write-Error "Python not found on runner. Install Python 3.11+ and ensure it's in PATH."
+            exit 1
+          }
+          python --version
+          python -m pip --version
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           if (Test-Path "backend/requirements.txt") {
             Write-Host "Installing backend requirements..."
-            pip install -r backend/requirements.txt
+            python -m pip install -r backend/requirements.txt
           } elseif (Test-Path "requirements.txt") {
             Write-Host "Installing root requirements..."
-            pip install -r requirements.txt
+            python -m pip install -r requirements.txt
           } else {
-            Write-Host "No requirements file found. Skipping app dependencies."
+            Write-Host "No requirements.txt found. Skipping app deps."
           }
-          pip install ruff pytest pytest-cov
+          python -m pip install ruff pytest
 
       - name: Ruff lint
         run: |
@@ -45,14 +49,14 @@ jobs:
 
       - name: Run tests (pytest)
         run: |
-          $testPaths = @()
+          $patterns = @("test_*.py", "*_test.py")
+          $testFiles = @()
           if (Test-Path "backend") {
-            $testPaths = Get-ChildItem -Path backend -Recurse -Include "test_*.py", "*_test.py"
-          } else {
-            $testPaths = Get-ChildItem -Path . -Recurse -Include "test_*.py", "*_test.py"
+            $testFiles += Get-ChildItem -Path backend -Recurse -Include $patterns -File
           }
+          $testFiles += Get-ChildItem -Path . -Recurse -Include $patterns -File
 
-          if (-not $testPaths) {
+          if (-not $testFiles) {
             Write-Host "No tests found. Skipping pytest."
             exit 0
           }
