@@ -1,0 +1,255 @@
+name: Automated Failure Triage (Gemini)
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Demo reason / failure description"
+        required: false
+        default: "Manual demo triage run"
+      run_url:
+        description: "Optional run URL to reference"
+        required: false
+        default: ""
+  workflow_run:
+    workflows:
+      - Runner Smoke Test
+      - CI - Python Backend (System Python)
+      - CD - Minikube (Windows)
+    types:
+      - completed
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+
+env:
+  GEMINI_MODEL: gemini-1.5-flash
+
+jobs:
+  triage:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Explain trigger context
+        run: |
+          echo "Event: ${{ github.event_name }}"
+          echo "Conclusion: ${{ github.event.workflow_run.conclusion || 'n/a' }}"
+          echo "Watched workflow: ${{ github.event.workflow_run.name || 'manual dispatch' }}"
+          echo "Will attempt issue creation: yes"
+
+      - name: Prepare triage input
+        id: prep
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          WORKFLOW_NAME="${{ github.event.workflow_run.name || github.workflow }}"
+          RUN_NUMBER="${{ github.event.workflow_run.run_number || github.run_number }}"
+          RUN_URL="${{ github.event.workflow_run.html_url || format('{0}/{1}/actions/runs/{2}', github.server_url, github.repository, github.run_id) }}"
+          BRANCH="${{ github.event.workflow_run.head_branch || github.ref }}"
+          SHA="${{ github.event.workflow_run.head_sha || github.sha }}"
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            REASON="${{ github.event.inputs.reason || 'Manual demo triage run' }}"
+            INPUT_URL="${{ github.event.inputs.run_url }}"
+            if [ -n "$INPUT_URL" ]; then
+              RUN_URL="$INPUT_URL"
+            fi
+
+            cat <<EOF2 > triage_input.txt
+Reason: $REASON
+Run URL: $RUN_URL
+Repo: ${{ github.repository }}
+Workflow: $WORKFLOW_NAME
+Run number: $RUN_NUMBER
+Branch: $BRANCH
+SHA: $SHA
+EOF2
+            echo "workflow_name=$WORKFLOW_NAME" >> "$GITHUB_OUTPUT"
+            echo "run_number=$RUN_NUMBER" >> "$GITHUB_OUTPUT"
+            echo "run_url=$RUN_URL" >> "$GITHUB_OUTPUT"
+            echo "head_branch=$BRANCH" >> "$GITHUB_OUTPUT"
+            echo "head_sha=$SHA" >> "$GITHUB_OUTPUT"
+            echo "triage_ready=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "workflow_name=$WORKFLOW_NAME" >> "$GITHUB_OUTPUT"
+          echo "run_number=$RUN_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "run_url=$RUN_URL" >> "$GITHUB_OUTPUT"
+          echo "head_branch=$BRANCH" >> "$GITHUB_OUTPUT"
+          echo "head_sha=$SHA" >> "$GITHUB_OUTPUT"
+
+          RUN_ID="${{ github.event.workflow_run.id }}"
+          echo "triage_ready=false" >> "$GITHUB_OUTPUT"
+
+          artifacts_json=$(gh api "/repos/${{ github.repository }}/actions/runs/${RUN_ID}/artifacts" --paginate)
+          artifact_url=$(echo "$artifacts_json" | jq -r '.artifacts[] | select(.name=="triage") | .archive_download_url' | head -n1)
+
+          if [ -z "$artifact_url" ] || [ "$artifact_url" = "null" ]; then
+            echo "No triage artifact found."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "found=true" >> "$GITHUB_OUTPUT"
+          echo "$artifact_url" > artifact_url.txt
+
+      - name: Extract triage artifact
+        if: steps.prep.outputs.found == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          curl -sL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" -o triage_artifact.zip "$(cat artifact_url.txt)"
+          unzip -o triage_artifact.zip -d triage_artifact
+          if [ -f triage_artifact/summary.txt ]; then
+            cp triage_artifact/summary.txt triage_input.txt
+          else
+            echo "Triage artifact archive found but summary.txt missing." > triage_input.txt
+          fi
+
+      - name: Create fallback triage input
+        if: steps.prep.outputs.found != 'true' && steps.prep.outputs.triage_ready != 'true'
+        run: |
+          echo "Run URL: ${{ steps.prep.outputs.run_url }}" > triage_input.txt
+          echo "Workflow: ${{ steps.prep.outputs.workflow_name }}" >> triage_input.txt
+          echo "Branch: ${{ steps.prep.outputs.head_branch }}" >> triage_input.txt
+          echo "SHA: ${{ steps.prep.outputs.head_sha }}" >> triage_input.txt
+          echo "No triage artifact was uploaded by the failing job." >> triage_input.txt
+
+      - name: Redact obvious secrets
+        run: |
+          cp triage_input.txt triage_redacted.txt
+          sed -i -E 's/github_pat_[A-Za-z0-9]+/REDACTED/g' triage_redacted.txt || true
+          sed -i -E 's/ghp_[A-Za-z0-9]+/REDACTED/g' triage_redacted.txt || true
+          sed -i -E 's/(Bearer\s+)[A-Za-z0-9\-\._~\+\/]+=*/\1REDACTED/g' triage_redacted.txt || true
+          sed -i -E 's/(x-goog-api-key[:=]\s*)[A-Za-z0-9_\-]+/\1REDACTED/gi' triage_redacted.txt || true
+          sed -i -E 's/(https?:\/\/[^\s\"]*[A-Za-z0-9]{24,})/REDACTED_URL/g' triage_redacted.txt || true
+
+      - name: Call Gemini to generate issue content
+        id: gemini
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          MODEL="${GEMINI_MODEL:-gemini-1.5-flash}"
+          if [ -z "${GEMINI_API_KEY}" ]; then
+            echo "Gemini API key missing; using fallback message." > gemini_output.txt
+            exit 0
+          fi
+
+          PROMPT="You are an expert CI/CD investigator. Using the triage notes below, produce structured Markdown with sections: TL;DR (1-3 bullets), Root cause hypothesis, Exact fix steps, Repo file changes (list files + edits), Codex Fix Prompt (code block ready for an agent), Extra diagnostics to add (optional). Keep it concise and actionable."
+          TRIAGE_CONTENT=$(cat triage_redacted.txt)
+
+          cat > request.json <<EOF2
+          {
+            "contents": [
+              {
+                "role": "user",
+                "parts": [
+                  {
+                    "text": "${PROMPT}\n\nTriage notes:\n${TRIAGE_CONTENT}"
+                  }
+                ]
+              }
+            ]
+          }
+          EOF2
+
+          RESPONSE_CODE=0
+          curl -s -X POST \
+            -H "Content-Type: application/json" \
+            -H "x-goog-api-key: ${GEMINI_API_KEY}" \
+            "https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent" \
+            -d @request.json -o response.json || RESPONSE_CODE=$?
+
+          if [ ${RESPONSE_CODE} -ne 0 ]; then
+            echo "Gemini unavailable; see triage_redacted.txt" > gemini_output.txt
+            exit 0
+          fi
+
+          python - <<'PY'
+import json
+from pathlib import Path
+
+resp_path = Path('response.json')
+text = "Gemini unavailable; see triage_redacted.txt"
+if resp_path.exists():
+    try:
+        data = json.loads(resp_path.read_text())
+        candidates = data.get('candidates') or []
+        if candidates:
+            parts = candidates[0].get('content', {}).get('parts') or []
+            if parts and parts[0].get('text'):
+                text = parts[0]['text']
+    except Exception:
+        text = "Gemini response parsing failed; see triage_redacted.txt"
+
+Path('gemini_output.txt').write_text(text)
+PY
+
+      - name: Create GitHub Issue (deduped)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          WORKFLOW_NAME="${{ steps.prep.outputs.workflow_name }}"
+          RUN_NUMBER="${{ steps.prep.outputs.run_number }}"
+          RUN_URL="${{ steps.prep.outputs.run_url }}"
+          BRANCH="${{ steps.prep.outputs.head_branch }}"
+          SHA="${{ steps.prep.outputs.head_sha }}"
+          SHORT_SHA=${SHA:0:7}
+
+          TRIAGE_TEXT=$(cat triage_redacted.txt)
+          GEMINI_TEXT=$(cat gemini_output.txt 2>/dev/null || echo "Gemini output unavailable.")
+
+          QUERY="repo:${GH_REPO} is:issue is:open in:title \"${WORKFLOW_NAME}\" \"${SHORT_SHA:-unknown}\""
+          EXISTING=$(gh api search/issues -f q="$QUERY" --jq '.items[0].number' || true)
+          if [ -n "$EXISTING" ]; then
+            echo "Duplicate issue detected (#$EXISTING); skipping creation."
+            exit 0
+          fi
+
+          TITLE="CI Failure: ${WORKFLOW_NAME} (#${RUN_NUMBER}) ${SHORT_SHA:-unknown}"
+          BODY=$(cat <<EOF2
+Run: ${RUN_URL}
+Branch: ${BRANCH}
+SHA: ${SHA}
+
+<details><summary>Triage notes</summary>
+
+```
+${TRIAGE_TEXT}
+```
+</details>
+
+## Gemini Analysis
+${GEMINI_TEXT}
+EOF2
+)
+
+          LABELS='["ci-failure","needs-codex-fix"]'
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            LABELS='["ci-failure","needs-codex-fix","demo"]'
+          fi
+
+          if ! gh api \
+            --method POST \
+            --header "Accept: application/vnd.github+json" \
+            "/repos/${GH_REPO}/issues" \
+            -f "title=${TITLE}" \
+            -f "body=${BODY}" \
+            -f "labels=${LABELS}"; then
+            echo "Labelled issue creation failed; retrying without labels."
+            gh api \
+              --method POST \
+              --header "Accept: application/vnd.github+json" \
+              "/repos/${GH_REPO}/issues" \
+              -f "title=${TITLE}" \
+              -f "body=${BODY}"
+          fi
