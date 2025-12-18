@@ -17,7 +17,6 @@ import soundfile as sf
 import soxr
 from faster_whisper import WhisperModel
 
-
 DEFAULT_SETTINGS = {
     "model": "small",
     "compute_type": "int8",
