@@ -10,7 +10,7 @@ This repository includes a small set of GitHub Actions pipelines designed to run
 - **Triggers:** `workflow_dispatch` or `push` when the workflow file changes.
 - **What it does:** Prints user/machine/OS/PowerShell info, Git version, and probes Docker and kubectl without failing if they are missing.
 
-### CI - Python (Windows)
+### CI - Python Backend (System Python)
 - **File:** [.github/workflows/ci-python.yml](../.github/workflows/ci-python.yml)
 - **Purpose:** Lint and test the Python backend whether it lives in the repo root or under `backend/`.
 - **Triggers:** `push` to `main` and any `pull_request`.

@@ -42,9 +42,9 @@ jobs:
       - name: Ruff lint
         run: |
           if (Test-Path "backend") {
-            ruff check backend
+            python -m ruff check backend
           } else {
-            ruff check .
+            python -m ruff check .
           }
 
       - name: Run tests (pytest)
@@ -62,9 +62,9 @@ jobs:
           }
 
           if (Test-Path "backend") {
-            pytest -q backend
+            python -m pytest -q backend
           } else {
-            pytest -q
+            python -m pytest -q
           }
 
       - name: Create triage summary (on failure)
@@ -87,8 +87,8 @@ jobs:
 
           try { python --version | Out-File -FilePath $summaryPath -Encoding utf8 -Append } catch {}
           try { python -m pip --version | Out-File -FilePath $summaryPath -Encoding utf8 -Append } catch {}
-          try { ruff --version | Out-File -FilePath $summaryPath -Encoding utf8 -Append } catch {}
-          try { pytest --version | Out-File -FilePath $summaryPath -Encoding utf8 -Append } catch {}
+          try { python -m ruff --version | Out-File -FilePath $summaryPath -Encoding utf8 -Append } catch {}
+          try { python -m pytest --version | Out-File -FilePath $summaryPath -Encoding utf8 -Append } catch {}
           try { docker version | Out-File -FilePath $summaryPath -Encoding utf8 -Append } catch {}
           try { minikube status | Out-File -FilePath $summaryPath -Encoding utf8 -Append } catch {}
           try { kubectl version --client | Out-File -FilePath $summaryPath -Encoding utf8 -Append } catch {}
