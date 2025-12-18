@@ -66,3 +66,37 @@ jobs:
           } else {
             pytest -q
           }
+
+      - name: Create triage summary (on failure)
+        if: failure()
+        run: |
+          New-Item -ItemType Directory -Path "_triage" -Force | Out-Null
+          $summaryPath = "_triage/summary.txt"
+          $runUrl = "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          $branch = if ($env:GITHUB_HEAD_REF) { $env:GITHUB_HEAD_REF } else { $env:GITHUB_REF }
+          @(
+            "Repo: $env:GITHUB_REPOSITORY",
+            "Run URL: $runUrl",
+            "SHA: $env:GITHUB_SHA",
+            "Branch: $branch",
+            "Workflow: ${{ github.workflow }}",
+            "Job: ${{ github.job }}",
+            "Runner: $env:RUNNER_NAME",
+            "Runner OS: $env:RUNNER_OS"
+          ) | Out-File -FilePath $summaryPath -Encoding utf8
+
+          try { python --version | Out-File -FilePath $summaryPath -Encoding utf8 -Append } catch {}
+          try { python -m pip --version | Out-File -FilePath $summaryPath -Encoding utf8 -Append } catch {}
+          try { ruff --version | Out-File -FilePath $summaryPath -Encoding utf8 -Append } catch {}
+          try { pytest --version | Out-File -FilePath $summaryPath -Encoding utf8 -Append } catch {}
+          try { docker version | Out-File -FilePath $summaryPath -Encoding utf8 -Append } catch {}
+          try { minikube status | Out-File -FilePath $summaryPath -Encoding utf8 -Append } catch {}
+          try { kubectl version --client | Out-File -FilePath $summaryPath -Encoding utf8 -Append } catch {}
+          "If logs are needed, open the run URL above." | Out-File -FilePath $summaryPath -Encoding utf8 -Append
+
+      - name: Upload triage artifact
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: triage
+          path: _triage/summary.txt
