@@ -32,6 +32,14 @@ jobs:
             $skip = $true
           }
 
+          if (-not $skip) {
+            $minikubeCmd = Get-Command minikube -ErrorAction SilentlyContinue
+            if (-not $minikubeCmd) {
+              Write-Host "Minikube is not installed on this runner. Skipping deployment."
+              $skip = $true
+            }
+          }
+
           try {
             kubectl version --client
           } catch {
@@ -77,6 +85,65 @@ jobs:
           }
           Write-Host "Building image using $dockerfile (context: $context)"
           docker build -t python-backend:latest -f $dockerfile $context
+
+      - name: Ensure Kubernetes manifests exist
+        if: env.SKIP_CD != 'true'
+        run: |
+          if (-not (Test-Path "k8s")) {
+            New-Item -ItemType Directory -Path "k8s" -Force | Out-Null
+          }
+
+          $deploymentPath = "k8s/deployment.yaml"
+          $servicePath = "k8s/service.yaml"
+
+          if (-not (Test-Path $deploymentPath)) {
+            @(
+              "apiVersion: apps/v1",
+              "kind: Deployment",
+              "metadata:",
+              "  name: python-backend",
+              "  labels:",
+              "    app: python-backend",
+              "spec:",
+              "  replicas: 1",
+              "  selector:",
+              "    matchLabels:",
+              "      app: python-backend",
+              "  template:",
+              "    metadata:",
+              "      labels:",
+              "        app: python-backend",
+              "    spec:",
+              "      containers:",
+              "        - name: python-backend",
+              "          image: python-backend:latest",
+              "          imagePullPolicy: IfNotPresent",
+              "          ports:",
+              "            - containerPort: 8000",
+              "          env:",
+              "            - name: PORT",
+              "              value: \"8000\""
+            ) | Out-File -FilePath $deploymentPath -Encoding utf8
+          }
+
+          if (-not (Test-Path $servicePath)) {
+            @(
+              "apiVersion: v1",
+              "kind: Service",
+              "metadata:",
+              "  name: python-backend",
+              "  labels:",
+              "    app: python-backend",
+              "spec:",
+              "  type: NodePort",
+              "  selector:",
+              "    app: python-backend",
+              "  ports:",
+              "    - port: 80",
+              "      targetPort: 8000",
+              "      nodePort: 30080"
+            ) | Out-File -FilePath $servicePath -Encoding utf8
+          }
 
       - name: Deploy to minikube
         if: env.SKIP_CD != 'true'
@@ -133,8 +200,8 @@ jobs:
 
           try { python --version | Out-File -FilePath $summaryPath -Encoding utf8 -Append } catch {}
           try { python -m pip --version | Out-File -FilePath $summaryPath -Encoding utf8 -Append } catch {}
-          try { ruff --version | Out-File -FilePath $summaryPath -Encoding utf8 -Append } catch {}
-          try { pytest --version | Out-File -FilePath $summaryPath -Encoding utf8 -Append } catch {}
+          try { python -m ruff --version | Out-File -FilePath $summaryPath -Encoding utf8 -Append } catch {}
+          try { python -m pytest --version | Out-File -FilePath $summaryPath -Encoding utf8 -Append } catch {}
           try { docker version | Out-File -FilePath $summaryPath -Encoding utf8 -Append } catch {}
           try { minikube status | Out-File -FilePath $summaryPath -Encoding utf8 -Append } catch {}
           try { kubectl version --client | Out-File -FilePath $summaryPath -Encoding utf8 -Append } catch {}

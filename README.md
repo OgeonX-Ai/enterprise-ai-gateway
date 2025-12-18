@@ -32,6 +32,7 @@ Vendor-agnostic enterprise AI gateway that owns a single agent runtime, session 
 ## Pipelines
 - Runner Smoke Test (self-hosted Windows): [.github/workflows/runner-smoke.yml](.github/workflows/runner-smoke.yml)
 - Python CI on the Windows runner (uses system Python): [.github/workflows/ci-python.yml](.github/workflows/ci-python.yml)
+- Showcase Summary: [.github/workflows/showcase-summary.yml](.github/workflows/showcase-summary.yml)
 - Optional Minikube CD on the same runner: [.github/workflows/cd-minikube.yml](.github/workflows/cd-minikube.yml)
 - Overview and usage: [`docs/pipelines.md`](docs/pipelines.md)
 
@@ -39,13 +40,20 @@ All workflows target the self-hosted Windows runner; optional Docker/Minikube to
 
 ## Quality & Automation
 - CI uses the Windows self-hosted runner with the installed system Python (no `actions/setup-python`). Lint and tests run via bundled PowerShell helper scripts. Install Python 3.11–3.12 on the runner for full audio-stack compatibility (PyAV wheels are not yet available for 3.13).
-- Automated failure triage (`Automated Failure Triage (Gemini)`) listens to failed smoke/CI/CD runs, ingests the uploaded triage summary artifact, and opens a GitHub Issue with redacted notes, Gemini analysis, and a Codex-ready fix prompt.
+- Automated failure triage (`Automated Failure Triage (Gemini)`) listens to failed smoke/CI/CD runs (or manual dispatches), ingests the uploaded triage summary artifact, and opens a GitHub Issue with redacted notes, Gemini analysis, and a Codex-ready fix prompt.
+- Showcase Summary workflow prints a concise report, executes lint/tests via the shared scripts, and highlights what the repo demonstrates for quick demos.
 
 ## Local commands
 - PowerShell (Windows runner parity):
   - Lint + auto-fix + format: `./scripts/lint-fix.ps1`
   - Lint check (matches CI): `./scripts/lint-check.ps1`
   - Tests with skip-if-missing: `./scripts/test.ps1`
+
+## Automation Showcase
+- CI: `CI - Python Backend (System Python)` (runs on push/PR)
+- Failure triage: `Automated Failure Triage (Gemini)` (auto on failures; also runnable manually for demos)
+- Showcase Summary: `Showcase Summary` (run manually or on doc/README changes)
+- CD demo: `CD - Minikube (Windows)` (run manually or on backend/k8s/Dockerfile changes)
 
 ## Automated Failure Triage
 - Failed workflow runs upload a small triage artifact and trigger [`Automated Failure Triage (Gemini)`](.github/workflows/triage-failures-gemini.yml).

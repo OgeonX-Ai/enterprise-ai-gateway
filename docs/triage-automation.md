@@ -17,8 +17,13 @@ This repository captures a lightweight triage artifact on job failure and uses G
 3. The workflow never logs the secret and redacts common token patterns before calling Gemini.
 
 ## Issue creation and deduplication
-- Issues are labeled `ci-failure` and `needs-codex-fix`.
+- Issues are labeled `ci-failure` and `needs-codex-fix` (manual demos add `demo`).
 - Before creating a new issue, the workflow searches open issues for the same workflow name and short SHA. If found, no new issue is opened.
+
+## Manual demo mode
+- In GitHub Actions, select **Automated Failure Triage (Gemini)** and use **Run workflow** to trigger a manual demo.
+- Provide an optional reason and run URL; the workflow will build triage notes from your inputs and still create a GitHub Issue (with the `demo` label) even without an upstream failing run.
+- If triggered automatically after a successful upstream run, the job is skipped and no issue is created; the initial log line explains the event and conclusion.
 
 ## Using the “Codex Fix Prompt”
 - The Gemini output includes a dedicated code block intended for Codex or another agent to apply fixes quickly.
