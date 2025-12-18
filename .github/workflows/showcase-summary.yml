@@ -1,0 +1,58 @@
+name: Showcase Summary
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - README.md
+      - docs/**
+      - .github/workflows/showcase-summary.yml
+
+jobs:
+  showcase:
+    runs-on: [self-hosted, windows]
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Print run context
+        run: |
+          Write-Host "Repository: $env:GITHUB_REPOSITORY"
+          Write-Host "SHA: $env:GITHUB_SHA"
+          Write-Host "Branch/Ref: $env:GITHUB_REF"
+          Write-Host "Run URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+      - name: Runner info
+        run: |
+          Write-Host "Runner: $env:RUNNER_NAME"
+          Write-Host "Runner OS: $env:RUNNER_OS"
+          Write-Host "PowerShell: $($PSVersionTable.PSVersion)"
+          git --version
+
+      - name: Tooling versions
+        run: |
+          python --version
+          python -m pip --version
+          try { docker version } catch { Write-Host "Docker unavailable" }
+          try { minikube version } catch { Write-Host "Minikube unavailable" }
+          try { minikube status } catch { Write-Host "Minikube status unavailable" }
+          try { kubectl version --client } catch { Write-Host "kubectl unavailable" }
+
+      - name: Lint (Ruff)
+        run: .\scripts\lint-check.ps1
+
+      - name: Tests (Pytest)
+        run: .\scripts\test.ps1
+
+      - name: Showcase highlights
+        run: |
+          Write-Host "Showcase highlights:" \
+            "`n- Self-hosted Windows runner with system Python" \
+            "`n- CI lint+tests via reusable PowerShell scripts" \
+            "`n- Automated Gemini-powered failure triage" \
+            "`n- Optional Minikube CD demo (python-backend:latest)"
+          Write-Host "Documentation: docs/pipelines.md and docs/triage-automation.md"
