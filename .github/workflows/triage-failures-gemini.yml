@@ -49,12 +49,11 @@ jobs:
             const {owner, repo} = context.repo;
             const triagePath = path.join(process.cwd(), 'triage_input.txt');
 
-            const workflowName = context.payload.workflow_run?.name ?? context.workflow ?? 'Unknown workflow';
-            const runNumber = context.payload.workflow_run?.run_number ?? process.env.GITHUB_RUN_NUMBER ?? '';
-            const defaultRunUrl = `https://github.com/${owner}/${repo}/actions/runs/${process.env.GITHUB_RUN_ID}`;
-            let runUrl = context.payload.workflow_run?.html_url ?? defaultRunUrl;
-            const branch = context.payload.workflow_run?.head_branch ?? context.ref ?? process.env.GITHUB_REF ?? '';
-            const sha = context.payload.workflow_run?.head_sha ?? context.sha ?? process.env.GITHUB_SHA ?? '';
+            let workflowName = context.payload.workflow_run?.name || context.workflow || 'Unknown workflow';
+            let runNumber = context.payload.workflow_run?.run_number || process.env.GITHUB_RUN_NUMBER || '';
+            let runUrl = context.payload.workflow_run?.html_url || `https://github.com/${owner}/${repo}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+            let branch = context.payload.workflow_run?.head_branch || context.ref || process.env.GITHUB_REF || '';
+            let sha = context.payload.workflow_run?.head_sha || context.sha || process.env.GITHUB_SHA || '';
 
             if (context.eventName === 'workflow_dispatch') {
               const inputs = context.payload.inputs || {};
@@ -188,30 +187,31 @@ jobs:
           fi
 
           python - <<'PY'
-import json
-from pathlib import Path
+            import json
+            from pathlib import Path
 
-resp_path = Path('response.json')
-text = "Gemini unavailable; see triage_redacted.txt"
-if resp_path.exists():
-    try:
-        data = json.loads(resp_path.read_text())
-        candidates = data.get('candidates') or []
-        if candidates:
-            parts = candidates[0].get('content', {}).get('parts') or []
-            if parts and parts[0].get('text'):
-                text = parts[0]['text']
-    except Exception:
-        text = "Gemini response parsing failed; see triage_redacted.txt"
+            resp_path = Path('response.json')
+            text = "Gemini unavailable; see triage_redacted.txt"
+            if resp_path.exists():
+                try:
+                    data = json.loads(resp_path.read_text())
+                    candidates = data.get('candidates') or []
+                    if candidates:
+                        parts = candidates[0].get('content', {}).get('parts') or []
+                        if parts and parts[0].get('text'):
+                            text = parts[0]['text']
+                except Exception:
+                    text = "Gemini response parsing failed; see triage_redacted.txt"
 
-Path('gemini_output.txt').write_text(text)
-PY
+            Path('gemini_output.txt').write_text(text)
+          PY
 
       - name: Create GitHub Issue (deduped)
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
+            const core = require('@actions/core');
             const {owner, repo} = context.repo;
             const workflowName = `${{ toJson(steps.fetch.outputs.workflow_name) }}`.replace(/^"|"$/g, '') || 'Unknown workflow';
             const runNumber = `${{ steps.fetch.outputs.run_number }}` || 'unknown';
