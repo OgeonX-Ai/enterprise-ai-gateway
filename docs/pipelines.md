@@ -16,9 +16,9 @@ This repository includes a small set of GitHub Actions pipelines designed to run
 - **Triggers:** `push` to `main` and any `pull_request`.
 - **What it does:**
   - Checks out code and uses the system Python already installed on the Windows runner (install Python 3.11+ and ensure it is on `PATH`). No `actions/setup-python` step is required.
-  - Installs dependencies from `backend/requirements.txt` if present, else `requirements.txt`, then always installs Ruff and Pytest.
-  - Runs Ruff against `backend/` if it exists, otherwise the repository root.
-  - Runs Pytest against `backend/` if it exists, otherwise the repository root. If no tests matching `test_*.py` or `*_test.py` are found, the job logs a friendly skip message and succeeds.
+  - Installs dependencies from `backend/requirements.txt` if present, else `requirements.txt`.
+  - Executes bundled helper scripts for consistency with local dev: `scripts/lint-check.ps1` (Ruff) and `scripts/test.ps1` (Pytest with skip-if-missing logic).
+  - Test discovery looks for `test_*.py` or `*_test.py` and exits cleanly with a message when none are present.
 
 ### CD - Minikube (Windows)
 - **File:** [.github/workflows/cd-minikube.yml](../.github/workflows/cd-minikube.yml)

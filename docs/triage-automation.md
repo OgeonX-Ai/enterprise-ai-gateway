@@ -3,7 +3,7 @@
 This repository captures a lightweight triage artifact on job failure and uses Google Gemini to open a GitHub Issue with ready-to-use remediation guidance.
 
 ## How it works
-- On any failing job in the smoke, CI, or Minikube CD workflows, a `_triage/summary.txt` file is written with run metadata and best-effort diagnostic versions.
+- On any failing job in the smoke (`Runner Smoke Test`), CI (`CI - Python Backend (System Python)`), or Minikube CD (`CD - Minikube (Windows)`) workflows, a `_triage/summary.txt` file is written with run metadata and best-effort diagnostic versions.
 - The summary is uploaded as an artifact named **triage**.
 - The `Automated Failure Triage (Gemini)` workflow listens for failed runs of those workflows, downloads the artifact, redacts obvious secrets, and asks Gemini for a structured incident analysis.
 - A new issue is created (if one is not already open for the same workflow + SHA) with:

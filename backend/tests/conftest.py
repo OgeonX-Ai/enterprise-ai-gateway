@@ -1,7 +1,10 @@
 import sys
 from pathlib import Path
 
+import httpx
 import pytest
+
+_ = httpx  # Preload real httpx before stubs adjust sys.path
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 if str(ROOT_DIR) not in sys.path:

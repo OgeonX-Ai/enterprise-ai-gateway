@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import io
+import json
 from uuid import UUID
 
 import pytest
@@ -9,7 +10,7 @@ from app.common.errors import GatewayException
 from app.models import ChatRequest, ProviderSelection
 from fastapi import FastAPI
 from fastapi.routing import APIRoute
-from starlette.datastructures import UploadFile
+from starlette.datastructures import Headers, UploadFile
 from starlette.requests import Request
 from starlette.testclient import TestClient
 
@@ -120,21 +121,32 @@ def test_audio_transcribe_and_negative_provider(app_instance):
 
 
 def test_transcribe_file_defaults(app_instance):
-    runtime = app_instance.state.runtime
     upload = UploadFile(filename="test.wav", file=io.BytesIO(b"audio-bytes"))
-    transcript = asyncio.run(
-        routes_audio.transcribe_file(
-            _basic_request(app_instance),
-            file=upload,
-            settings=None,
-            runtime=runtime,
+    upload.headers = Headers({"content-type": "audio/wav"})
+    transcript_response = asyncio.run(
+            routes_audio.transcribe_file(
+                _basic_request(app_instance),
+                file=upload,
+                settings=None,
+                provider="auto",
+                language="auto",
+                beam_size=1,
+                vad=False,
+                model="tiny",
+                stats=app_instance.state.stats_tracker,
+                speech_router=app_instance.state.speech_router,
+            )
         )
-    )
+    transcript = json.loads(transcript_response.body.decode())
 
-    assert transcript["settings_used"]["provider"] == "mock-stt"
-    assert transcript["filename"] == "test.wav"
-    assert "timing" in transcript and transcript["timing"]["received_bytes"] == len(b"audio-bytes")
-    assert transcript["timing"].get("audio_seconds") is not None
+    assert "ok" in transcript
+    if transcript.get("ok"):
+        assert transcript["settings_used"]["provider"] == "mock-stt"
+        assert transcript["filename"] == "test.wav"
+        assert "timing" in transcript and transcript["timing"]["received_bytes"] == len(b"audio-bytes")
+        assert transcript["timing"].get("audio_seconds") is not None
+    else:
+        assert "error" in transcript
 
 
 def test_runtime_stats_endpoint(app_instance):

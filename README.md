@@ -37,6 +37,16 @@ Vendor-agnostic enterprise AI gateway that owns a single agent runtime, session 
 
 All workflows target the self-hosted Windows runner; optional Docker/Minikube tooling is detected gracefully so missing local dependencies will skip CD without failing CI. The CI workflow expects Python 3.11+ to be installed and available on `PATH` on the runner.
 
+## Quality & Automation
+- CI uses the Windows self-hosted runner with the installed system Python (no `actions/setup-python`). Lint and tests run via bundled PowerShell helper scripts.
+- Automated failure triage (`Automated Failure Triage (Gemini)`) listens to failed smoke/CI/CD runs, ingests the uploaded triage summary artifact, and opens a GitHub Issue with redacted notes, Gemini analysis, and a Codex-ready fix prompt.
+
+## Local commands
+- PowerShell (Windows runner parity):
+  - Lint + auto-fix + format: `./scripts/lint-fix.ps1`
+  - Lint check (matches CI): `./scripts/lint-check.ps1`
+  - Tests with skip-if-missing: `./scripts/test.ps1`
+
 ## Automated Failure Triage
 - Failed workflow runs upload a small triage artifact and trigger [`Automated Failure Triage (Gemini)`](.github/workflows/triage-failures-gemini.yml).
 - The triage workflow opens a GitHub Issue with redacted notes, Gemini analysis, and a Codex-ready fix prompt.
@@ -70,6 +80,7 @@ All workflows target the self-hosted Windows runner; optional Docker/Minikube to
 ## Tests and validation
 - Run unit + integration tests with coverage: `make test`
 - Lint (ruff) and tests together: `make check`
+- Or use the PowerShell equivalents above for runner parity.
 - Test reports are written to `reports/junit.xml` for CI upload.
 
 ## Repository structure

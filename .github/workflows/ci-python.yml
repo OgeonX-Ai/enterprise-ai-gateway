@@ -37,35 +37,12 @@ jobs:
           } else {
             Write-Host "No requirements.txt found. Skipping app deps."
           }
-          python -m pip install ruff pytest
 
       - name: Ruff lint
-        run: |
-          if (Test-Path "backend") {
-            python -m ruff check backend
-          } else {
-            python -m ruff check .
-          }
+        run: .\scripts\lint-check.ps1
 
       - name: Run tests (pytest)
-        run: |
-          $patterns = @("test_*.py", "*_test.py")
-          $testFiles = @()
-          if (Test-Path "backend") {
-            $testFiles += Get-ChildItem -Path backend -Recurse -Include $patterns -File
-          }
-          $testFiles += Get-ChildItem -Path . -Recurse -Include $patterns -File
-
-          if (-not $testFiles) {
-            Write-Host "No tests found. Skipping pytest."
-            exit 0
-          }
-
-          if (Test-Path "backend") {
-            python -m pytest -q backend
-          } else {
-            python -m pytest -q
-          }
+        run: .\scripts\test.ps1
 
       - name: Create triage summary (on failure)
         if: failure()
