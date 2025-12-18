@@ -1,0 +1,114 @@
+name: CD - Minikube (Windows)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - backend/**
+      - k8s/**
+      - Dockerfile
+      - .github/workflows/cd-minikube.yml
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, windows]
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Environment pre-checks
+        run: |
+          $skip = $false
+
+          try {
+            Write-Host "Checking Docker..."
+            docker version
+          } catch {
+            Write-Host "Docker is not available. Skipping deployment."
+            $skip = $true
+          }
+
+          try {
+            kubectl version --client
+          } catch {
+            Write-Host "kubectl not found or not working; continuing if minikube configures it."
+          }
+
+          if (-not $skip) {
+            try {
+              $status = minikube status --format "{{.Host}}"
+            } catch {
+              $status = ""
+            }
+
+            if (-not $status -or $status -notmatch "Running") {
+              Write-Host "Minikube is not running. Attempting to start with Docker driver..."
+              try {
+                minikube start --driver=docker
+              } catch {
+                Write-Host "Failed to start minikube. Skipping deployment."
+                $skip = $true
+              }
+            }
+          }
+
+          if ($skip) {
+            "SKIP_CD=true" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+            exit 0
+          }
+
+      - name: Use minikube Docker daemon
+        if: env.SKIP_CD != 'true'
+        run: |
+          & minikube -p minikube docker-env --shell powershell | Invoke-Expression
+
+      - name: Build container image
+        if: env.SKIP_CD != 'true'
+        run: |
+          $dockerfile = "Dockerfile"
+          $context = "."
+          if ((-not (Test-Path $dockerfile)) -and (Test-Path "backend/Dockerfile")) {
+            $dockerfile = "backend/Dockerfile"
+            $context = "backend"
+          }
+          Write-Host "Building image using $dockerfile (context: $context)"
+          docker build -t python-backend:latest -f $dockerfile $context
+
+      - name: Deploy to minikube
+        if: env.SKIP_CD != 'true'
+        run: |
+          if (-not (Test-Path "k8s")) {
+            Write-Host "k8s/ directory not found. Skipping deployment."
+            exit 0
+          }
+
+          kubectl apply -f k8s/
+
+          $deploymentFile = Join-Path "k8s" "deployment.yaml"
+          $deploymentName = $null
+          if (Test-Path $deploymentFile) {
+            $match = Select-String -Path $deploymentFile -Pattern "^\s*name:\s*(\S+)" | Select-Object -First 1
+            if ($match -and $match.Matches[0].Groups.Count -ge 2) {
+              $deploymentName = $match.Matches[0].Groups[1].Value
+            }
+          }
+
+          if ($deploymentName) {
+            Write-Host "Waiting for rollout of deployment/$deploymentName"
+            kubectl rollout status deployment/$deploymentName --timeout=120s
+          } elseif (kubectl get deployment python-backend -o name 2>$null) {
+            Write-Host "Waiting for rollout of deployment/python-backend"
+            kubectl rollout status deployment/python-backend --timeout=120s
+          } else {
+            Write-Host "No deployment name detected for rollout status; skipping rollout wait."
+          }
+
+      - name: Show service URL
+        if: env.SKIP_CD != 'true'
+        continue-on-error: true
+        run: |
+          minikube service python-backend --url

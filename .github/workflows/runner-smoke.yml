@@ -1,0 +1,32 @@
+name: Runner Smoke (Windows)
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/runner-smoke.yml
+
+jobs:
+  smoke:
+    runs-on: [self-hosted, windows]
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Runner info
+        run: |
+          Write-Host "Username: $env:USERNAME"
+          Write-Host "Computer: $env:COMPUTERNAME"
+          Write-Host "OS Version: $([System.Environment]::OSVersion.VersionString)"
+          Write-Host "PowerShell: $($PSVersionTable.PSVersion)"
+          git --version
+      - name: Docker check
+        continue-on-error: true
+        run: |
+          Write-Host "Checking Docker availability..."
+          docker version
+      - name: Kubectl check
+        continue-on-error: true
+        run: |
+          Write-Host "Checking kubectl availability..."
+          kubectl version --client
