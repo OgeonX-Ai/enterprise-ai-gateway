@@ -1,7 +1,6 @@
 import re
 from typing import Any, Dict
 
-
 PII_PATTERNS = [
     re.compile(r"\b\d{3}-\d{2}-\d{4}\b"),
     re.compile(r"\b\d{16}\b"),
