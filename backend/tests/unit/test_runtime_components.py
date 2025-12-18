@@ -1,5 +1,4 @@
 import pytest
-
 from app.common.errors import PolicyViolation
 from app.models import ChatMessage
 from app.runtime.context_builder import ContextBuilder

@@ -1,4 +1,26 @@
-import asyncio
+
+
+import sys
+from importlib import import_module
+from pathlib import Path
+
+STUB_DIR = Path(__file__).resolve().parent
+removed = False
+if sys.path and sys.path[0] == str(STUB_DIR):
+    sys.path.pop(0)
+    removed = True
+
+_real_httpx = import_module("httpx")
+
+if removed:
+    sys.path.insert(0, str(STUB_DIR))
+
+Client = _real_httpx.Client
+BaseTransport = getattr(_real_httpx, "BaseTransport", type("BaseTransport", (), {}))
+AsyncBaseTransport = getattr(
+    _real_httpx, "AsyncBaseTransport", type("AsyncBaseTransport", (), {})
+)
+HTTPStatusError = getattr(_real_httpx, "HTTPStatusError", Exception)
 
 
 class Response:
