@@ -10,13 +10,16 @@ import datetime as dt
 import io
 import json
 import time
-from typing import Any, Dict, List, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple
 
 import numpy as np
 import soundfile as sf
 import soxr
-from faster_whisper import WhisperModel
 
+if TYPE_CHECKING:  # pragma: no cover - type hints only
+    from faster_whisper import WhisperModel
+else:  # pragma: no cover - allow import without dependency installed
+    WhisperModel = object
 
 DEFAULT_SETTINGS = {
     "model": "small",
@@ -39,10 +42,17 @@ def _load_model(model_name: str, compute_type: str, logs: List[str]) -> WhisperM
     if cache_key in _MODEL_CACHE:
         return _MODEL_CACHE[cache_key]
 
+    try:
+        from faster_whisper import WhisperModel as WhisperModelType
+    except ModuleNotFoundError as exc:  # pragma: no cover - dependency may be absent
+        raise RuntimeError(
+            "faster-whisper is not installed. Install it (Python 3.11/3.12 recommended) to use local Whisper."
+        ) from exc
+
     logs.append(
         f"[{_timestamp()}] Loading model '{model_name}' on CPU (compute_type={compute_type})"
     )
-    model = WhisperModel(model_name, device="cpu", compute_type=compute_type)
+    model = WhisperModelType(model_name, device="cpu", compute_type=compute_type)
     _MODEL_CACHE[cache_key] = model
     logs.append(f"[{_timestamp()}] Model ready")
     return model

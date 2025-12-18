@@ -54,7 +54,10 @@ class ServiceNowConnector(ServiceDeskConnector):
             return results[0] if results else {}
 
     async def search_kb(self, query: str, top_k: int = 3) -> Dict[str, Any]:
-        url = f"{self.instance_url}/api/now/table/kb_knowledge?sysparm_query=123TEXTQUERY321={query}&sysparm_limit={top_k}"
+        url = (
+            f"{self.instance_url}/api/now/table/kb_knowledge?"
+            f"sysparm_query=123TEXTQUERY321={query}&sysparm_limit={top_k}"
+        )
         async with httpx.AsyncClient() as client:
             resp = await client.get(url, headers=await self._headers())
             resp.raise_for_status()

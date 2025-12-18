@@ -2,7 +2,6 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 
 from ..services import whisper_service
 
-
 router = APIRouter(prefix="/api/whisper")
 
 

@@ -1,4 +1,5 @@
 import uuid
+
 from fastapi import APIRouter, Depends, Request
 
 from ..models import ChatRequest, ChatResponse, SessionResponse

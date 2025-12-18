@@ -4,25 +4,24 @@ from typing import Any, Dict, Optional
 
 from ..common.errors import GatewayException
 from ..common.logging import bind_correlation_id, get_logger, log_event
+from ..connectors.llm.azure_openai import AzureOpenAIConnector
+from ..connectors.llm.mock_llm import MockLLMConnector
+from ..connectors.rag.azure_ai_search import AzureAISearchConnector
+from ..connectors.rag.mock_search import MockSearchConnector
+from ..connectors.servicedesk.jira_sm import JiraServiceManagementConnector
+from ..connectors.servicedesk.mock_servicedesk import MockServiceDeskConnector
+from ..connectors.servicedesk.remedy import RemedyConnector
+from ..connectors.servicedesk.servicenow import ServiceNowConnector
+from ..connectors.speech.azure_speech import AzureSpeechConnector
+from ..connectors.speech.mock_speech import MockSpeechConnector
 from ..models import (
     ChatMessage,
     ChatRequest,
     ChatResponse,
-    ProviderSelection,
     ValidationDetail,
     ValidationResponse,
 )
 from ..registry.service_registry import ServiceRegistry
-from ..connectors.llm.mock_llm import MockLLMConnector
-from ..connectors.llm.azure_openai import AzureOpenAIConnector
-from ..connectors.rag.mock_search import MockSearchConnector
-from ..connectors.rag.azure_ai_search import AzureAISearchConnector
-from ..connectors.speech.mock_speech import MockSpeechConnector
-from ..connectors.speech.azure_speech import AzureSpeechConnector
-from ..connectors.servicedesk.mock_servicedesk import MockServiceDeskConnector
-from ..connectors.servicedesk.servicenow import ServiceNowConnector
-from ..connectors.servicedesk.jira_sm import JiraServiceManagementConnector
-from ..connectors.servicedesk.remedy import RemedyConnector
 from ..settings import Settings
 from .context_builder import ContextBuilder
 from .memory_store import MemoryStore
@@ -209,7 +208,9 @@ class AgentRuntime:
             raise GatewayException("STT provider not found")
         return await connector.transcribe(payload, locale=locale, model=model)
 
-    async def synthesize_audio(self, provider_id: str, text: str, locale: str, voice: Optional[str] = None) -> Dict[str, Any]:
+    async def synthesize_audio(
+        self, provider_id: str, text: str, locale: str, voice: Optional[str] = None
+    ) -> Dict[str, Any]:
         connector = self.tts_connectors.get(provider_id)
         if not connector:
             raise GatewayException("TTS provider not found")
@@ -236,7 +237,11 @@ class AgentRuntime:
                             service_type=service_type,
                             provider=provider_id,
                             status="not_configured",
-                            reason=f"Missing env: {', '.join(provider.missing_env)}" if provider.missing_env else "Disabled",
+                            reason=(
+                                f"Missing env: {', '.join(provider.missing_env)}"
+                                if provider.missing_env
+                                else "Disabled"
+                            ),
                         )
                     )
                     continue
@@ -259,5 +264,13 @@ class AgentRuntime:
                             reason=str(exc),
                         )
                     )
-        overall_status = "ok" if all(item.status == "ok" for item in details if self.registry.is_configured(item.service_type, item.provider)) else "attention"
+        overall_status = (
+            "ok"
+            if all(
+                item.status == "ok"
+                for item in details
+                if self.registry.is_configured(item.service_type, item.provider)
+            )
+            else "attention"
+        )
         return ValidationResponse(status=overall_status, results=details)
