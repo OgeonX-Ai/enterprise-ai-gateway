@@ -16,7 +16,7 @@ Vendor-agnostic enterprise AI gateway that owns a single agent runtime, session 
 - Service Desk: ServiceNow, Jira Service Management, Remedy
 
 ## Quickstart (≤10 minutes)
-1. Prereqs: Python 3.11+, `make`, and optionally Azure credentials if you want to exercise the Azure connectors (mocks are default).
+1. Prereqs: Python 3.11+ (3.11–3.12 recommended; PyAV/faster-whisper wheels are not published for Python 3.13 yet), `make`, and optionally Azure credentials if you want to exercise the Azure connectors (mocks are default).
 2. Bootstrap a virtualenv and install dev dependencies:
    ```bash
    make install
@@ -35,10 +35,10 @@ Vendor-agnostic enterprise AI gateway that owns a single agent runtime, session 
 - Optional Minikube CD on the same runner: [.github/workflows/cd-minikube.yml](.github/workflows/cd-minikube.yml)
 - Overview and usage: [`docs/pipelines.md`](docs/pipelines.md)
 
-All workflows target the self-hosted Windows runner; optional Docker/Minikube tooling is detected gracefully so missing local dependencies will skip CD without failing CI. The CI workflow expects Python 3.11+ to be installed and available on `PATH` on the runner.
+All workflows target the self-hosted Windows runner; optional Docker/Minikube tooling is detected gracefully so missing local dependencies will skip CD without failing CI. The CI workflow expects Python 3.11+ (3.11–3.12 preferred to avoid PyAV build issues on 3.13) to be installed and available on `PATH` on the runner.
 
 ## Quality & Automation
-- CI uses the Windows self-hosted runner with the installed system Python (no `actions/setup-python`). Lint and tests run via bundled PowerShell helper scripts.
+- CI uses the Windows self-hosted runner with the installed system Python (no `actions/setup-python`). Lint and tests run via bundled PowerShell helper scripts. Install Python 3.11–3.12 on the runner for full audio-stack compatibility (PyAV wheels are not yet available for 3.13).
 - Automated failure triage (`Automated Failure Triage (Gemini)`) listens to failed smoke/CI/CD runs, ingests the uploaded triage summary artifact, and opens a GitHub Issue with redacted notes, Gemini analysis, and a Codex-ready fix prompt.
 
 ## Local commands
