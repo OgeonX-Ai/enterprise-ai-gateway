@@ -1,0 +1,207 @@
+name: Automated Failure Triage (Gemini)
+
+on:
+  workflow_run:
+    workflows:
+      - Runner Smoke Test
+      - CI - Python Backend (System Python)
+      - CD - Minikube (Windows)
+    types:
+      - completed
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+
+env:
+  GEMINI_MODEL: gemini-1.5-flash
+
+jobs:
+  triage:
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch triage artifact
+        id: fetch
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const core = require('@actions/core');
+            const {owner, repo} = context.repo;
+            const runId = context.payload.workflow_run.id;
+
+            const artifacts = await github.paginate(github.rest.actions.listWorkflowRunArtifacts, {
+              owner,
+              repo,
+              run_id: runId,
+            });
+
+            const triage = artifacts.find((artifact) => artifact.name === 'triage');
+            core.setOutput('run_url', context.payload.workflow_run.html_url);
+            core.setOutput('workflow_name', context.payload.workflow_run.name);
+            core.setOutput('run_number', context.payload.workflow_run.run_number);
+            core.setOutput('head_branch', context.payload.workflow_run.head_branch || '');
+            core.setOutput('head_sha', context.payload.workflow_run.head_sha || '');
+
+            if (!triage) {
+              core.info('No triage artifact found.');
+              core.setOutput('found', 'false');
+              return;
+            }
+
+            const download = await github.rest.actions.downloadArtifact({
+              owner,
+              repo,
+              artifact_id: triage.id,
+              archive_format: 'zip',
+            });
+
+            const artifactPath = path.join(process.cwd(), 'triage_artifact.zip');
+            fs.writeFileSync(artifactPath, Buffer.from(download.data));
+            core.setOutput('found', 'true');
+            core.setOutput('artifact_path', artifactPath);
+
+      - name: Extract triage artifact
+        if: steps.fetch.outputs.found == 'true'
+        run: |
+          unzip -o "${{ steps.fetch.outputs.artifact_path }}" -d triage_artifact
+          if [ -f triage_artifact/summary.txt ]; then
+            cp triage_artifact/summary.txt triage_input.txt
+          else
+            echo "Triage artifact archive found but summary.txt missing." > triage_input.txt
+          fi
+
+      - name: Create fallback triage input
+        if: steps.fetch.outputs.found != 'true'
+        run: |
+          echo "Run URL: ${{ steps.fetch.outputs.run_url }}" > triage_input.txt
+          echo "Workflow: ${{ steps.fetch.outputs.workflow_name }}" >> triage_input.txt
+          echo "Branch: ${{ steps.fetch.outputs.head_branch }}" >> triage_input.txt
+          echo "SHA: ${{ steps.fetch.outputs.head_sha }}" >> triage_input.txt
+          echo "No triage artifact was uploaded by the failing job." >> triage_input.txt
+
+      - name: Redact obvious secrets
+        run: |
+          cp triage_input.txt triage_redacted.txt
+          sed -i -E 's/github_pat_[A-Za-z0-9]+/REDACTED/g' triage_redacted.txt || true
+          sed -i -E 's/ghp_[A-Za-z0-9]+/REDACTED/g' triage_redacted.txt || true
+          sed -i -E 's/(Bearer\s+)[A-Za-z0-9\-\._~\+\/]+=*/\1REDACTED/g' triage_redacted.txt || true
+          sed -i -E 's/(x-goog-api-key[:=]\s*)[A-Za-z0-9_\-]+/\1REDACTED/gi' triage_redacted.txt || true
+          sed -i -E 's/(https?:\/\/[^\s\"]*[A-Za-z0-9]{24,})/REDACTED_URL/g' triage_redacted.txt || true
+
+      - name: Call Gemini to generate issue content
+        id: gemini
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          MODEL="${GEMINI_MODEL:-gemini-1.5-flash}"
+          if [ -z "${GEMINI_API_KEY}" ]; then
+            echo "Gemini API key missing; using fallback message." > gemini_output.txt
+            exit 0
+          fi
+
+          PROMPT="You are an expert CI/CD investigator. Using the triage notes below, produce structured Markdown with sections: TL;DR (1-3 bullets), Root cause hypothesis, Exact fix steps, Repo file changes (list files + edits), Codex Fix Prompt (code block ready for an agent), Extra diagnostics to add (optional). Keep it concise and actionable."
+          TRIAGE_CONTENT=$(cat triage_redacted.txt)
+
+          cat > request.json <<EOF
+          {
+            "contents": [
+              {
+                "role": "user",
+                "parts": [
+                  {
+                    "text": "${PROMPT}\n\nTriage notes:\n${TRIAGE_CONTENT}"
+                  }
+                ]
+              }
+            ]
+          }
+          EOF
+
+          RESPONSE_CODE=0
+          curl -s -X POST \
+            -H "Content-Type: application/json" \
+            -H "x-goog-api-key: ${GEMINI_API_KEY}" \
+            "https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent" \
+            -d @request.json -o response.json || RESPONSE_CODE=$?
+
+          if [ ${RESPONSE_CODE} -ne 0 ]; then
+            echo "Gemini unavailable; see triage_redacted.txt" > gemini_output.txt
+            exit 0
+          fi
+
+          python - <<'PY'
+import json
+from pathlib import Path
+resp_path = Path('response.json')
+text = "Gemini unavailable; see triage_redacted.txt"
+if resp_path.exists():
+    try:
+        data = json.loads(resp_path.read_text())
+        candidates = data.get('candidates') or []
+        if candidates:
+            parts = candidates[0].get('content', {}).get('parts') or []
+            if parts and parts[0].get('text'):
+                text = parts[0]['text']
+    except Exception:
+        text = "Gemini response parsing failed; see triage_redacted.txt"
+Path('gemini_output.txt').write_text(text)
+PY
+
+      - name: Create GitHub Issue (deduped)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const core = require('@actions/core');
+            const {owner, repo} = context.repo;
+            const workflowName = context.payload.workflow_run.name;
+            const runNumber = context.payload.workflow_run.run_number;
+            const runUrl = context.payload.workflow_run.html_url;
+            const branch = context.payload.workflow_run.head_branch || '';
+            const sha = context.payload.workflow_run.head_sha || '';
+            const shortSha = sha ? sha.substring(0, 7) : 'unknown';
+            const title = `CI Failure: ${workflowName} (#${runNumber}) ${shortSha}`;
+
+            const triageText = fs.readFileSync('triage_redacted.txt', 'utf8');
+            const geminiText = fs.existsSync('gemini_output.txt') ? fs.readFileSync('gemini_output.txt', 'utf8') : 'Gemini output unavailable.';
+
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              state: 'open',
+              labels: 'ci-failure,needs-codex-fix',
+            });
+
+            const duplicate = issues.find((issue) => issue.title.includes(workflowName) && issue.title.includes(shortSha));
+            if (duplicate) {
+              core.info(`Duplicate issue detected (#${duplicate.number}); skipping creation.`);
+              return;
+            }
+
+            const body = [
+              `Run: ${runUrl}`,
+              `Branch: ${branch}`,
+              `SHA: ${sha}`,
+              '',
+              '<details><summary>Triage notes</summary>\n\n```\n' + triageText + '\n```\n</details>',
+              '',
+              '## Gemini Analysis',
+              geminiText,
+            ].join('\n');
+
+            try {
+              await github.rest.issues.create({
+                owner,
+                repo,
+                title,
+                body,
+                labels: ['ci-failure', 'needs-codex-fix'],
+              });
+            } catch (error) {
+              core.warning(`Issue creation failed: ${error.message}`);
+              throw error;
+            }
