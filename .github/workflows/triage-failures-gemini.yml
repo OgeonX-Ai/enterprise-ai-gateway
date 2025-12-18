@@ -172,7 +172,7 @@ jobs:
               }
             ]
           }
-          EOF2
+          EOF
 
           RESPONSE_CODE=0
           curl -s -X POST \
@@ -187,23 +187,23 @@ jobs:
           fi
 
           python - <<'PY'
-            import json
-            from pathlib import Path
+          import json
+          from pathlib import Path
 
-            resp_path = Path('response.json')
-            text = "Gemini unavailable; see triage_redacted.txt"
-            if resp_path.exists():
-                try:
-                    data = json.loads(resp_path.read_text())
-                    candidates = data.get('candidates') or []
-                    if candidates:
-                        parts = candidates[0].get('content', {}).get('parts') or []
-                        if parts and parts[0].get('text'):
-                            text = parts[0]['text']
-                except Exception:
-                    text = "Gemini response parsing failed; see triage_redacted.txt"
+          resp_path = Path('response.json')
+          text = "Gemini unavailable; see triage_redacted.txt"
+          if resp_path.exists():
+              try:
+                  data = json.loads(resp_path.read_text())
+                  candidates = data.get('candidates') or []
+                  if candidates:
+                      parts = candidates[0].get('content', {}).get('parts') or []
+                      if parts and parts[0].get('text'):
+                          text = parts[0]['text']
+              except Exception:
+                  text = "Gemini response parsing failed; see triage_redacted.txt"
 
-            Path('gemini_output.txt').write_text(text)
+          Path('gemini_output.txt').write_text(text)
           PY
 
       - name: Create GitHub Issue (deduped)
@@ -211,8 +211,8 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const core = require('@actions/core');
             const {owner, repo} = context.repo;
+
             const workflowName = `${{ toJson(steps.fetch.outputs.workflow_name) }}`.replace(/^"|"$/g, '') || 'Unknown workflow';
             const runNumber = `${{ steps.fetch.outputs.run_number }}` || 'unknown';
             const runUrl = `${{ steps.fetch.outputs.run_url }}` || `https://github.com/${owner}/${repo}`;
@@ -222,7 +222,9 @@ jobs:
             const title = `CI Failure: ${workflowName} (#${runNumber}) ${shortSha}`;
 
             const triageText = fs.readFileSync('triage_redacted.txt', 'utf8');
-            const geminiText = fs.existsSync('gemini_output.txt') ? fs.readFileSync('gemini_output.txt', 'utf8') : 'Gemini output unavailable.';
+            const geminiText = fs.existsSync('gemini_output.txt')
+              ? fs.readFileSync('gemini_output.txt', 'utf8')
+              : 'Gemini output unavailable.';
 
             const query = `repo:${owner}/${repo} is:issue is:open in:title "${workflowName}" "${shortSha}"`;
             const search = await github.rest.search.issuesAndPullRequests({ q: query });
@@ -244,9 +246,7 @@ jobs:
             ].join('\n');
 
             const labels = ['ci-failure', 'needs-codex-fix'];
-            if (context.eventName === 'workflow_dispatch') {
-              labels.push('demo');
-            }
+            if (context.eventName === 'workflow_dispatch') labels.push('demo');
 
             try {
               await github.rest.issues.create({
