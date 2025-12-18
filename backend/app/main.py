@@ -23,8 +23,8 @@ from .runtime.memory_store import MemoryStore
 from .runtime.policy import PolicyEngine
 from .runtime.router import RuntimeRouter
 from .runtime.stats import StatsTracker
-from .speech import SpeechRouter
 from .settings import get_settings
+from .speech import SpeechRouter
 
 log_broadcaster = configure_logging()
 settings = get_settings()
