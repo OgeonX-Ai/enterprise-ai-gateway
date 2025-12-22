@@ -27,7 +27,7 @@ jobs:
         env:
           PYTHONPATH: backend
         run: |
-          .venv/bin/ruff backend/app backend/tests
+          .venv/bin/ruff check backend/app backend/tests
           mkdir -p reports
           .venv/bin/pytest backend/tests --cov=backend/app --cov-report=term-missing --junitxml=reports/junit.xml
 
