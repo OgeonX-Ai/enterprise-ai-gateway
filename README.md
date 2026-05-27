@@ -1,116 +1,55 @@
-# Enterprise AI Gateway
+# enterprise-ai-gateway
 
-Vendor-agnostic enterprise AI gateway that owns a single agent runtime, session memory, and routing across LLM, speech, RAG, and service desk providers. The backend is FastAPI; the frontend is a static HTML client.
+> Vendor-agnostic AI service bus that routes chat, voice, and knowledge requests across LLM, RAG, speech, and service-desk providers — with session memory, policy enforcement, and per-request provider selection.
+
+[![CI](https://github.com/OgeonX-Ai/enterprise-ai-gateway/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/OgeonX-Ai/enterprise-ai-gateway/actions/workflows/ci.yml)
+[![Python 3.11](https://img.shields.io/badge/python-3.11-blue)](https://python.org)
+[![MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
+[![Coding-Autopilot-System](https://img.shields.io/badge/ecosystem-Coding--Autopilot--System-blue)](https://github.com/Coding-Autopilot-System)
+
+Part of the [Coding-Autopilot-System](https://github.com/Coding-Autopilot-System) ecosystem: [gsd-orchestrator](https://github.com/Coding-Autopilot-System/gsd-orchestrator) | [Promptimprover](https://github.com/Coding-Autopilot-System/Promptimprover) | [autogen](https://github.com/Coding-Autopilot-System/autogen)
+
+**See also:** [OgeonX-Ai/android](https://github.com/OgeonX-Ai/android) — AI voice interaction client for Android
+
+## Architecture
+
+\`\`\`mermaid
+flowchart LR
+  Client[Web / Agent Client] -->|/v1/chat| GW[API Gateway\nFastAPI]
+  GW --> Policy[Policy Engine]
+  Policy --> Memory[Session Memory]
+  Memory --> RAG[RAG\nAzure AI Search]
+  Memory --> LLM[LLM Router\nAzure OpenAI / OpenAI / Anthropic / Ollama]
+  GW --> Speech[Speech Services\nSTT / TTS]
+  LLM --> SD[Service Desk\nServiceNow / Jira / Remedy]
+\`\`\`
+
+The gateway receives requests through a FastAPI endpoint and passes them through a policy engine for input sanitization. Session memory maintains per-conversation context. The core routes to multiple AI providers: LLM inference (Azure OpenAI, OpenAI, Anthropic, Ollama), retrieval-augmented generation (Azure AI Search), speech-to-text and text-to-speech (Azure Speech, Whisper, ElevenLabs), and service desk integration (ServiceNow, Jira Service Management, Remedy). A service registry exposes available capabilities at runtime, and correlation IDs trace requests across all layers.
 
 ## Features
-- Unified `/v1/chat` runtime with policy, memory, and provider selections per request
-- Service registry exposing available providers/models for dropdowns
-- Mock and Azure-aligned stub connectors for LLM, RAG, STT/TTS, and service desk systems
-- Correlation IDs and structured logging for traceability
-- Static web UI with provider selectors, channel toggle, and debug drawer
 
-## Supported providers
-- Speech-to-Text (STT): local Whisper (faster-whisper), Azure Speech, OpenAI Whisper API, Deepgram (stub)
-- Large Language Models (LLM): Azure OpenAI, OpenAI, Anthropic, Ollama (local), LLaMA.cpp (stub)
-- Text-to-Speech (TTS): Azure Speech TTS, local TTS stub
-- Service Desk: ServiceNow, Jira Service Management, Remedy
+- **Multi-LLM routing** — per-request provider selection across Azure OpenAI, OpenAI, Anthropic, and Ollama
+- **RAG augmentation** — retrieval-augmented generation against Azure AI Search
+- **Speech services** — STT (Azure Speech, faster-whisper, OpenAI Whisper API) and TTS
+- **Service desk integration** — intent detection and ticket operations for ServiceNow, Jira SM, and Remedy
+- **Policy enforcement** — input sanitization before LLM submission
+- **Session memory** — persistent per-session chat history
+- **Service registry** — live capability discovery for front-end provider selectors
+- **Correlation IDs** — `X-Correlation-ID` header propagated through all layers
+- **Debug SSE stream** — `/v1/debug/stream` for live log streaming
+- **Kubernetes-ready** — deployment and service manifests included
 
-## Quickstart (≤10 minutes)
-1. Prereqs: Python 3.11+ (3.11–3.12 recommended; PyAV/faster-whisper wheels are not published for Python 3.13 yet), `make`, and optionally Azure credentials if you want to exercise the Azure connectors (mocks are default).
-2. Bootstrap a virtualenv and install dev dependencies:
-   ```bash
-   make install
-   cp backend/.env.example backend/.env
-   ```
-3. Run the API locally:
-   ```bash
-   source .venv/bin/activate
-   uvicorn app.main:app --app-dir backend --reload
-   ```
-4. Open `web/index.html` in your browser and point it to `http://localhost:8000`.
+## Quick Start
 
-## Pipelines
-- Runner Smoke Test (self-hosted Windows): [.github/workflows/runner-smoke.yml](.github/workflows/runner-smoke.yml)
-- Python CI on the Windows runner (uses system Python): [.github/workflows/ci-python.yml](.github/workflows/ci-python.yml)
-- Showcase Summary: [.github/workflows/showcase-summary.yml](.github/workflows/showcase-summary.yml)
-- Optional Minikube CD on the same runner: [.github/workflows/cd-minikube.yml](.github/workflows/cd-minikube.yml)
-- Overview and usage: [`docs/pipelines.md`](docs/pipelines.md)
+\`\`\`bash
+git clone https://github.com/OgeonX-Ai/enterprise-ai-gateway.git
+cd enterprise-ai-gateway/backend
+pip install -r requirements.txt
+cp .env.example .env  # configure provider keys as needed
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+\`\`\`
 
-All workflows target the self-hosted Windows runner; optional Docker/Minikube tooling is detected gracefully so missing local dependencies will skip CD without failing CI. The CI workflow expects Python 3.11+ (3.11–3.12 preferred to avoid PyAV build issues on 3.13) to be installed and available on `PATH` on the runner.
+---
 
-## Quality & Automation
-- CI uses the Windows self-hosted runner with the installed system Python (no `actions/setup-python`). Lint and tests run via bundled PowerShell helper scripts. Install Python 3.11–3.12 on the runner for full audio-stack compatibility (PyAV wheels are not yet available for 3.13).
-- Automated failure triage (`Automated Failure Triage (Gemini)`) listens to failed smoke/CI/CD runs (or manual dispatches), ingests the uploaded triage summary artifact, and opens a GitHub Issue with redacted notes, Gemini analysis, and a Codex-ready fix prompt.
-- Showcase Summary workflow prints a concise report, executes lint/tests via the shared scripts, and highlights what the repo demonstrates for quick demos.
-
-## Local commands
-- PowerShell (Windows runner parity):
-  - Lint + auto-fix + format: `./scripts/lint-fix.ps1`
-  - Lint check (matches CI): `./scripts/lint-check.ps1`
-  - Tests with skip-if-missing: `./scripts/test.ps1`
-
-## Automation Showcase
-- CI: `CI - Python Backend (System Python)` (runs on push/PR)
-- Failure triage: `Automated Failure Triage (Gemini)` (auto on failures; also runnable manually for demos)
-- Showcase Summary: `Showcase Summary` (run manually or on doc/README changes)
-- CD demo: `CD - Minikube (Windows)` (run manually or on backend/k8s/Dockerfile changes)
-
-## Automated Failure Triage
-- Failed workflow runs upload a small triage artifact and trigger [`Automated Failure Triage (Gemini)`](.github/workflows/triage-failures-gemini.yml).
-- The triage workflow opens a GitHub Issue with redacted notes, Gemini analysis, and a Codex-ready fix prompt.
-- Setup and usage details: [`docs/triage-automation.md`](docs/triage-automation.md)
-
-## ServiceNow agent tools (mock-first)
-- The ServiceNow tool endpoints are exposed under `/v1/tools/servicenow/*` and are designed for agents (e.g., ElevenLabs Agent) to call.
-- By default the connector runs in **mock mode** with seeded incidents so you can test without credentials.
-- Configure the backend via `backend/.env` (see `backend/.env.example`):
-  - `SERVICENOW_MOCK_MODE=true` (default if credentials are missing)
-  - `SERVICENOW_INSTANCE_URL`, `SERVICENOW_USERNAME`, `SERVICENOW_PASSWORD` for real mode (basic auth).
-  - `CORS_ALLOW_ORIGINS` controls browser access (includes GitHub Pages demo by default).
-- Example calls:
-  - `POST /v1/tools/servicenow/search {"query":"vpn", "limit":3}`
-  - `POST /v1/tools/servicenow/ticket/update {"ticket":{"number":"INC0012345"}, "fields":{"state":"In Progress"}, "reason":"triage"}`
-  - `GET /v1/tools/servicenow/capabilities` (reports mock/real mode, instance, auth).
-- Logs carry `X-Correlation-ID` headers and are streamed to `/v1/debug/stream` when `ENABLE_DEBUG_STREAM=true`.
-- For production, replace local environment variables with a secret provider (e.g., Azure Key Vault placeholder at `backend/app/security/key_provider.py`).
-
-## Speech fallback behavior (ElevenLabs -> local Whisper)
-- `/v1/audio/transcribe-file` accepts `provider=auto|elevenlabs|local_whisper` plus optional `model`, `language`, `beam_size`, and `vad` query params.
-- When `provider=auto`, ElevenLabs is used if configured and healthy; auth/credit/429 errors mark it unavailable for 10 minutes and the router falls back to local Whisper.
-- `GET /v1/runtime/status` reports `stt_provider_active`, whether ElevenLabs is OK, the current mode (`primary` vs `fallback`), and the ServiceNow mode (`mock`/`real`).
-- Live backend logs (including STT/tool calls) stream from `/v1/debug/stream` when `ENABLE_DEBUG_STREAM=true`.
-
-## Whisper Playground (Local CPU Demo)
-- Start the FastAPI backend as above, then open [`http://127.0.0.1:8000/tools/whisper`](http://127.0.0.1:8000/tools/whisper).
-- Use your browser microphone to record, tweak Whisper settings (model, language, beam size, chunk length, VAD), and watch live logs.
-- The playground runs entirely on CPU using `faster-whisper`; performance depends on your laptop hardware. Audio is processed in-memory and not stored.
-
-## Tests and validation
-- Run unit + integration tests with coverage: `make test`
-- Lint (ruff) and tests together: `make check`
-- Or use the PowerShell equivalents above for runner parity.
-- Test reports are written to `reports/junit.xml` for CI upload.
-
-## Repository structure
-- `docs/`: Architecture, API, security, observability, deployment, routing, and new onboarding docs (`docs/architecture.md`, `docs/api.md`, `docs/contributing.md`, `docs/audit.md`).
-- `docs/mockups/`: Lightweight UI wireframes for chat and admin flows.
-- `backend/`: FastAPI runtime, service registry, connectors, and API routes.
-- `web/`: Static frontend that calls the gateway.
-- `demo/`: Local demo notes and screenshots.
-
-## Additional docs
-- Architecture overview and sequence diagrams: [`docs/architecture.md`](docs/architecture.md)
-- Endpoint reference with examples: [`docs/api.md`](docs/api.md)
-- Azure scalability guidance: [`docs/azure/scalability-report.md`](docs/azure/scalability-report.md)
-- Android parity + integration checklist: [`docs/android-integration-checklist.md`](docs/android-integration-checklist.md)
-- Contribution standards: [`docs/contributing.md`](docs/contributing.md)
-- Repo audit and current gaps: [`docs/audit.md`](docs/audit.md)
-- UI mockups: [`docs/mockups`](docs/mockups)
-
-## Troubleshooting
-- If Azure connectors are enabled via environment flags, ensure the related `AZURE_*` settings are present; otherwise, keep `DEV_MODE=true` to use mocks.
-- Delete or recreate `.venv` if dependencies drift: `rm -rf .venv && make install`.
-- Set `PYTHONPATH=backend` (already exported in the `Makefile`) when running tools outside `make`.
-
-## License
-MIT
+Part of the [Coding-Autopilot-System](https://github.com/Coding-Autopilot-System) ecosystem: [gsd-orchestrator](https://github.com/Coding-Autopilot-System/gsd-orchestrator) | [Promptimprover](https://github.com/Coding-Autopilot-System/Promptimprover) | [autogen](https://github.com/Coding-Autopilot-System/autogen)
